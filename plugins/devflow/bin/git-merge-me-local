@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command -v git >/dev/null 2>&1 || { echo "Missing dependency: 'git' not found. Install git." >&2; exit 1; }
+
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+SKIP_GIT_CHECK="${SKIP_GIT_CHECK:-0}"
+
+if [ "$current_branch" = "main" ] && [ "$SKIP_GIT_CHECK" -eq 0 ]; then
+  echo "Cannot merge from main branch"
+  exit 1
+fi
+
+if [ -n "$(git status --porcelain)" ] && [ "$SKIP_GIT_CHECK" -eq 0 ]; then
+  echo "Error: Working tree is not clean"
+  exit 1
+fi
+
+has_remote=0
+git remote | grep -q . && has_remote=1
+
+# Find the worktree (if any) that currently has main checked out.
+main_path=$(git worktree list --porcelain | awk '
+  /^worktree /{wt=substr($0, 10)}
+  $0=="branch refs/heads/main"{print wt; exit}
+')
+
+if [ -n "$main_path" ]; then
+  # main lives in another worktree -> merge into it without switching here.
+  if [ "$has_remote" -eq 1 ]; then
+    git pull origin main
+    git -C "$main_path" pull origin main
+  else
+    git rebase main
+  fi
+  git -C "$main_path" merge --no-ff "$current_branch"
+else
+  # main is not checked out anywhere -> switch to it and merge.
+  if [ "$has_remote" -eq 1 ]; then
+    git pull origin main
+  else
+    git rebase main
+  fi
+  git checkout main
+  [ "$has_remote" -eq 1 ] && git pull origin main
+  git merge --no-ff "$current_branch"
+fi

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+# Resolve this script's own directory so we call the bundled siblings,
+# not whatever happens to be on PATH.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+command -v git >/dev/null 2>&1 || { echo "Missing dependency: 'git' not found. Install git." >&2; exit 1; }
+[ -x "$DIR/git-merge-me-local" ] || { echo "Missing dependency: 'git-merge-me-local' not found alongside this script ($DIR)." >&2; exit 1; }
+[ -x "$DIR/worktree" ] || { echo "Missing dependency: 'worktree' not found alongside this script ($DIR)." >&2; exit 1; }
+
+"$DIR/git-merge-me-local" && "$DIR/worktree" destroy

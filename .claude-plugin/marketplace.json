@@ -6,8 +6,11 @@
     "email": "vbelman@drivenets.com"
   },
   "description": "Personal marketplace of Claude Code plugins and skills.",
-  "metadata": {
-    "pluginRoot": "./plugins"
-  },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "devflow",
+      "source": "./plugins/devflow",
+      "description": "Structured development task workflow: requirements to plan to code to close, with sub-agent reviews and JIRA integration."
+    }
+  ]
 }

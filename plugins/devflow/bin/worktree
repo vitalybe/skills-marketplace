@@ -1,0 +1,715 @@
+#!/usr/bin/env bash
+# @describe Worktree manager - add/remove worktrees, serve, with tmux integration
+# @meta version 1.0.0
+
+set -e
+
+# Source shared utilities (resolve symlinks to find real script location)
+SCRIPT_PATH=$(realpath "$0")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+source "${SCRIPT_DIR}/_shared/script-utils.sh"
+
+# Preflight: required runtime dependencies
+require_cmd git "Install git."
+require_cmd argc "Install argc: brew install argc (or cargo install argc)."
+
+# ============================================================================
+# Shared utilities
+# ============================================================================
+
+check_prerequisites() {
+    require_git_root >/dev/null
+
+    if [[ -z "${TMUX:-}" ]]; then
+        log_error "Not inside a tmux session"
+        exit 1
+    fi
+}
+
+get_project_name() {
+    local root="${1:-$(get_main_repo_root)}"
+    if [[ -f "$root/package.json" ]]; then
+        local name
+        name=$(jq -r '.name // empty' "$root/package.json" 2>/dev/null)
+        if [[ -n "$name" ]]; then
+            echo "$name"
+            return
+        fi
+    fi
+    # Fallback: main repo folder name
+    basename "$(get_main_repo_root)"
+}
+
+get_integration_scripts_dir() {
+    local base
+    if [[ -n "${1:-}" ]]; then
+        base="$1"
+    else
+        base=$(require_git_root)
+    fi
+    echo "$base/_integration_scripts"
+}
+
+# Main repo root (shared .git), same from any checkout of this repo
+get_main_repo_root() {
+    dirname "$(git rev-parse --path-format=absolute --git-common-dir)"
+}
+
+get_worktree_root() {
+    echo "$(git rev-parse --show-toplevel --path-format=absolute)"
+}
+
+# Branch name for a worktree checkout, or detached@<short>
+branch_for_worktree_path() {
+    local p="$1"
+    local b
+    b=$(git -C "$p" branch --show-current 2>/dev/null)
+    if [[ -n "$b" ]]; then
+        echo "$b"
+    else
+        echo "detached@$(git -C "$p" rev-parse --short HEAD 2>/dev/null || echo "?")"
+    fi
+}
+
+# Linked worktrees only (excludes primary checkout); one path per line
+list_secondary_worktrees() {
+    local primary path
+    primary=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+    primary=$(realpath "$primary" 2>/dev/null || echo "$primary")
+    while IFS= read -r line; do
+        if [[ "$line" == worktree\ * ]]; then
+            path="${line#worktree }"
+            local rp
+            rp=$(realpath "$path" 2>/dev/null || echo "$path")
+            if [[ "$rp" != "$primary" ]]; then
+                echo "$path"
+            fi
+        fi
+    done < <(git worktree list --porcelain 2>/dev/null)
+}
+
+# True when cwd is a linked worktree (not the primary checkout)
+is_linked_worktree() {
+    local git_dir git_common_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || return 1
+    git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || return 1
+    [[ "$(realpath "$git_dir")" != "$(realpath "$git_common_dir")" ]]
+}
+
+# Find a secondary worktree whose realpath matches the given target
+find_worktree_by_realpath() {
+    local target="$1"
+    local p
+    while IFS= read -r p; do
+        if [[ "$(realpath "$p" 2>/dev/null)" == "$target" ]]; then
+            echo "$p"
+            return 0
+        fi
+    done < <(list_secondary_worktrees)
+    return 1
+}
+
+# --- Teardown helpers ---
+
+close_cursor_windows_for_worktree_dir() {
+    local worktree_dir_name="$1"
+    osascript -e "
+        tell application \"System Events\"
+            if application process \"Cursor\" exists then
+                tell application process \"Cursor\"
+                    set windowList to every window whose name contains \"$worktree_dir_name\"
+                    repeat with w in windowList
+                        click button 1 of w
+                    end repeat
+                end tell
+            end if
+        end tell
+    " 2>/dev/null || true
+}
+
+# Kill tmux windows whose name contains the given task ID (skips current window)
+kill_tmux_windows_for_task() {
+    local task_id="$1"
+    [[ -z "$task_id" ]] && return 0
+    [[ -z "${TMUX:-}" ]] && return 0
+
+    local current_wid
+    current_wid=$(tmux display-message -p '#{window_id}' 2>/dev/null || true)
+
+    tmux list-windows -F '#{window_id} #{window_name}' 2>/dev/null | while IFS=' ' read -r wid name; do
+        [[ "$wid" == "$current_wid" ]] && continue
+        if [[ "$name" == *"$task_id"* ]]; then
+            log_debug "Closing tmux window: $name"
+            tmux kill-window -t "$wid" 2>/dev/null || true
+        fi
+    done
+}
+
+# Shared teardown: close Cursor windows and task tmux windows for a worktree
+remove_worktree_and_env() {
+    local worktree_path="$1"
+
+    worktree_path=$(realpath "$worktree_path")
+    local worktree_dir_name
+    worktree_dir_name=$(basename "$worktree_path")
+    local branch
+    branch=$(branch_for_worktree_path "$worktree_path")
+
+    log_value "Removing worktree" "$worktree_path"
+
+    local task_id
+    task_id=$(extract_task_id "$branch")
+    [[ -z "$task_id" ]] && task_id=$(extract_task_id "$worktree_dir_name")
+    kill_tmux_windows_for_task "$task_id"
+
+    close_cursor_windows_for_worktree_dir "$worktree_dir_name"
+}
+
+# --- Integration scripts ---
+
+# Prompt user via gum to create a missing integration script
+prompt_create_integration_script() {
+    local script_path="$1"
+    local script_name="$2"
+    local description="$3"
+    local default_value="${4:-}"
+
+    log_warn "No $script_name script found."
+    log_msg "$description"
+    local content
+    content=$(gum input --placeholder "Enter command for $script_name..." --header "$script_name" --value "$default_value")
+    if [[ -n "$content" ]]; then
+        printf '#!/usr/bin/env bash\nset -e\n\n%s\n' "$content" > "$script_path"
+        chmod +x "$script_path"
+        log_success "Created $script_name"
+    else
+        log_debug "Skipped $script_name (empty input)"
+    fi
+}
+
+# Ensure integration scripts directory and scripts exist; prompt with gum if missing
+ensure_integration_scripts() {
+    local integration_dir
+    integration_dir=$(get_integration_scripts_dir "${1:-}")
+
+    if [[ ! -d "$integration_dir" ]]; then
+        mkdir -p "$integration_dir"
+        log_debug "Created integration scripts directory"
+    fi
+
+    if [[ ! -f "$integration_dir/integration-worktree-init" ]]; then
+        prompt_create_integration_script \
+            "$integration_dir/integration-worktree-init" \
+            "integration-worktree-init" \
+            "This script runs when a worktree is created (e.g. npm install, copy .env)."
+    fi
+
+    if [[ ! -f "$integration_dir/integration-worktree-serve" ]]; then
+        prompt_create_integration_script \
+            "$integration_dir/integration-worktree-serve" \
+            "integration-worktree-serve" \
+            "This script starts the dev server for the worktree (e.g. npm run dev)."
+    fi
+
+    if [[ ! -f "$integration_dir/integration-worktree-merge" ]]; then
+        prompt_create_integration_script \
+            "$integration_dir/integration-worktree-merge" \
+            "integration-worktree-merge" \
+            "This script merges the worktree branch into main (e.g. rebase + merge --no-ff)." \
+            "git-merge-me-local"
+    fi
+}
+
+# ============================================================================
+# add — worktree at .worktrees/<branch>, ensure integration scripts, open tmux
+# ============================================================================
+
+resolve_task_id() {
+    local task_id="${1:-}"
+
+    if [[ -z "$task_id" ]]; then
+        local title
+        title=$(gum input --placeholder "New task title..." --header "Create a new task")
+        if [[ -z "$title" ]]; then
+            log_error "No task title provided."
+            return 1
+        fi
+
+        # Pick a parent epic. tasks create errors out when no --parent is
+        # given and the cache has !=1 epic, so resolve it here.
+        local epics_output
+        epics_output=$("${SCRIPT_DIR}/tasks" epics 2>&1) || {
+            log_error "Failed to list epics: $epics_output"
+            return 1
+        }
+        if [[ -z "$epics_output" ]]; then
+            log_error "No epics found in the task system; create one first."
+            return 1
+        fi
+        local epic_count
+        epic_count=$(echo "$epics_output" | grep -c .)
+        local parent_key
+        if [[ "$epic_count" == "1" ]]; then
+            parent_key=$(echo "$epics_output" | cut -f1)
+        else
+            local chosen
+            chosen=$(echo "$epics_output" | gum choose --header "Pick a parent epic") || return 1
+            if [[ -z "$chosen" ]]; then
+                log_error "No epic selected."
+                return 1
+            fi
+            parent_key=$(echo "$chosen" | cut -f1)
+        fi
+
+        # Keep stderr separate: under capture `tasks create` prints the
+        # KEY alone on stdout, but routes "creating Task under PARENT"
+        # progress chatter to stderr. Merging the two with `2>&1` would
+        # let that progress line match the KEY regex first and yield the
+        # parent key. Capture stdout only, dump stderr for the user.
+        local create_stderr
+        create_stderr=$(mktemp)
+        task_id=$("${SCRIPT_DIR}/tasks" create --parent "$parent_key" "$title" 2>"$create_stderr") || {
+            log_error "Failed to create task: $(cat "$create_stderr")"
+            rm -f "$create_stderr"
+            return 1
+        }
+        echo_stderr "$(cat "$create_stderr")"
+        rm -f "$create_stderr"
+        if ! [[ "$task_id" =~ ^[A-Za-z]+-[0-9]+$ ]]; then
+            log_error "tasks create returned an unexpected value: '$task_id'"
+            return 1
+        fi
+    fi
+
+    if ! [[ "$task_id" =~ ^[A-Za-z]+-[0-9]+$ ]]; then
+        log_error "Invalid task ID: $task_id (expected format: STF-123)"
+        return 1
+    fi
+
+    echo "$task_id"
+}
+
+resolve_branch_name() {
+    local task_id="$1"
+    # Capture stdout only - `tasks branch-name` emits the slug to stdout
+    # and any `_log` chatter (e.g. epic-cache refresh) to stderr. Merging
+    # would let progress lines contaminate the branch name.
+    local branch_stderr
+    branch_stderr=$(mktemp)
+    local branch_name
+    branch_name=$("${SCRIPT_DIR}/tasks" branch-name "$task_id" 2>"$branch_stderr") || {
+        log_error "Failed to get branch name for task $task_id: $(cat "$branch_stderr")"
+        rm -f "$branch_stderr"
+        return 1
+    }
+    rm -f "$branch_stderr"
+    if [[ -z "$branch_name" ]]; then
+        log_error "Failed to get branch name for task: $task_id"
+        return 1
+    fi
+    echo "$branch_name"
+}
+
+check_gitignore_for_worktrees() {
+    local repo_root="$1"
+    local gitignore_path="${repo_root}/.gitignore"
+
+    log_debug "Checking $gitignore_path for .worktrees..."
+    if [[ -f "$gitignore_path" ]]; then
+        if ! grep -q '\.worktrees' "$gitignore_path"; then
+            log_warn "Add '.worktrees' to .gitignore to avoid committing worktrees directory."
+        fi
+    else
+        log_warn "No .gitignore found. Consider creating one and adding '.worktrees'."
+    fi
+}
+
+create_worktree() {
+    local worktree_path="$1"
+    local branch_name="$2"
+    local at_ref="${3:-}"
+
+    if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+        log_debug "Using existing branch"
+        if [[ -n "$at_ref" ]]; then
+            log_warn "Ignoring --at (branch already exists locally)"
+        fi
+        gum spin --title "Creating worktree..." --show-output -- \
+            git worktree add "$worktree_path" "$branch_name"
+    else
+        if [[ -n "$at_ref" ]]; then
+            log_value "Based on" "$at_ref"
+            gum spin --title "Creating worktree..." --show-output -- \
+                git worktree add -b "$branch_name" "$worktree_path" "$at_ref"
+        else
+            gum spin --title "Creating worktree..." --show-output -- \
+                git worktree add -b "$branch_name" "$worktree_path"
+        fi
+    fi
+}
+
+wait_for_claude_init() {
+    local pane_id="$1"
+    local timeout=60 interval=5 elapsed=0
+
+    log_debug "Waiting for Claude to initialize..."
+    while [[ $elapsed -lt $timeout ]]; do
+        local pane_content
+        pane_content=$(tmux capture-pane -t "$pane_id" -p 2>/dev/null || true)
+        if echo "$pane_content" | grep -q "Yes, I trust this folder\|Claude Code v" 2>/dev/null; then
+            log_success "Claude is ready!"
+            tmux send-keys -t "$pane_id" Enter
+            return 0
+        fi
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+    done
+
+    log_warn "Timed out waiting for Claude initialization (${timeout}s)"
+}
+
+open_tmux_with_claude() {
+    local worktree_path="$1"
+    local branch_name="$2"
+    local initial_prompt="${3:-}"
+
+    # Always start from worktree root so Claude Code finds .claude/ settings
+    local pane_id
+    pane_id=$(tmux new-window -n "🌳 $branch_name" -c "$worktree_path" -P -F '#{pane_id}')
+
+    local integration_dir
+    integration_dir=$(get_integration_scripts_dir)
+    # Always launch Claude from worktree root so it finds .claude/ settings and skills
+    local claude_command="cd '$worktree_path' && claude --permission-mode acceptEdits --name '$branch_name'"
+    if [[ -n "$initial_prompt" ]]; then
+        claude_command+=" '$initial_prompt'"
+    fi
+
+    if [[ -x "$integration_dir/integration-worktree-init" ]]; then
+        log_debug "Running integration init..."
+        tmux send-keys -t "$pane_id" "$integration_dir/integration-worktree-init && $claude_command" Enter
+    else
+        tmux send-keys -t "$pane_id" "$claude_command" Enter
+    fi
+
+    wait_for_claude_init "$pane_id"
+}
+
+# @cmd add worktree at .worktrees/<branch>, ensure integration scripts, open in tmux
+# @alias a, create, c
+# @option --at <TEXT>     Branch or commit to base the new branch on
+# @option --name <TEXT>   Create a bare worktree with this branch name (no task)
+# @arg task_id   Task ID (e.g. STF-123). If omitted, prompts to create a new task. Ignored when --name is set.
+add() {
+    set_log_prefix "worktree:add"
+    check_prerequisites
+
+    local worktree_path=$(get_worktree_root)
+    check_gitignore_for_worktrees "$worktree_path"
+
+    local branch_name initial_prompt=""
+    if [[ -n "${argc_name:-}" ]]; then
+        if [[ -n "${argc_task_id:-}" ]]; then
+            log_error "--name and task_id are mutually exclusive."
+            return 1
+        fi
+        branch_name="${argc_name}"
+        log_value "Branch name" "$branch_name"
+    else
+        local task_id
+        task_id=$(resolve_task_id "${argc_task_id:-}") || return 1
+        log_value "Task ID" "$task_id"
+
+        log_debug "Generating branch name..."
+        branch_name=$(resolve_branch_name "$task_id") || return 1
+        log_value "Branch name" "$branch_name"
+        initial_prompt="/g-flow-next"
+    fi
+
+    log_value "Worktree path" "$worktree_path"
+
+    if [[ -e "$worktree_path" ]]; then
+        log_error "Path already exists: $worktree_path"
+        return 1
+    fi
+
+    ensure_integration_scripts
+
+    create_worktree "$worktree_path" "$branch_name" "${argc_at:-}"
+
+    # Resolve user's subdirectory relative to repo root so the tmux window
+    # opens at the matching path inside the new worktree.
+    local pwd_abs rel_subdir
+    pwd_abs=$(realpath "$(pwd)")
+    rel_subdir="${pwd_abs#"$repo_root"}"
+    rel_subdir="${rel_subdir#/}"
+    local start_dir="$worktree_path"
+    if [[ -n "$rel_subdir" && -d "$worktree_path/$rel_subdir" ]]; then
+        start_dir="$worktree_path/$rel_subdir"
+    fi
+
+    open_tmux_with_claude "$worktree_path" "$branch_name" "$initial_prompt"
+}
+
+# ============================================================================
+# remove — from linked worktree delegates to tmux; otherwise resolves by name/fzf
+# ============================================================================
+
+# Resolve name/basename/path to a secondary worktree path
+resolve_remove_target() {
+    local main_repo="$1"
+    local name="$2"
+    local candidate="${main_repo}/.worktrees/${name}"
+
+    # Try as .worktrees/<name> directory
+    if [[ -d "$candidate" ]]; then
+        find_worktree_by_realpath "$(realpath "$candidate")" && return 0
+    fi
+
+    # Try as direct path
+    if [[ -d "$name" ]]; then
+        find_worktree_by_realpath "$(realpath "$name")" && return 0
+    fi
+
+    # Try as basename match
+    local p
+    while IFS= read -r p; do
+        if [[ "$(basename "$p")" == "$name" ]]; then
+            echo "$p"
+            return 0
+        fi
+    done < <(list_secondary_worktrees)
+
+    return 1
+}
+
+# Delegate self-removal to a new tmux window (can't remove cwd)
+remove_self_via_tmux() {
+    local main_repo="$1"
+
+    local wt_root wt_name current_window_name main_root
+    wt_root=$(realpath "$(require_git_root)")
+    wt_name=$(basename "$wt_root")
+    current_window_name=$(tmux display-message -p '#{window_name}' 2>/dev/null || echo "$wt_name")
+    main_root=$(realpath "$main_repo")
+
+    local pane_id
+    pane_id=$(tmux new-window -n "💥 destroy $current_window_name" -c "$main_root" -P -F '#{pane_id}')
+    tmux send-keys -t "$pane_id" "$SCRIPT_PATH remove $(printf '%q' "$wt_name"); exit" Enter
+}
+
+# Pick a worktree interactively via gum filter
+pick_worktree() {
+    if ! list_secondary_worktrees | grep -q .; then
+        log_error "No linked worktrees to remove."
+        return 1
+    fi
+    local path
+    path=$(list_secondary_worktrees | gum filter --placeholder "Worktree to remove...") || {
+        echo_stderr "No selection."
+        return 1
+    }
+    [[ -z "$path" ]] && return 1
+    echo "$path"
+}
+
+# @cmd Remove worktree: from inside a linked worktree delegates to a new tmux window; otherwise resolves by name/fzf
+# @alias r, destroy, d
+# @arg name   Folder name under .worktrees/, basename, or path (optional)
+remove() {
+    set_log_prefix "worktree:remove"
+    require_git_root >/dev/null
+
+    local main_repo
+    main_repo=$(get_main_repo_root)
+
+    # Self-remove: delegate to a new tmux window
+    if is_linked_worktree && [[ -z "${argc_name:-}" ]]; then
+        check_prerequisites
+        remove_self_via_tmux "$main_repo"
+        return 0
+    fi
+
+    # Resolve target
+    local path=""
+    if [[ -n "${argc_name:-}" ]]; then
+        path=$(resolve_remove_target "$main_repo" "${argc_name}") || {
+            log_error "Not a linked worktree: ${argc_name}"
+            return 1
+        }
+    else
+        path=$(pick_worktree) || return 1
+    fi
+    path=$(realpath "$path" 2>/dev/null || echo "$path")
+
+    # Teardown & remove
+    remove_worktree_and_env "$path"
+    git worktree remove "$path"
+}
+
+# ============================================================================
+# serve — start dev server for current worktree
+# ============================================================================
+
+kill_existing_serve_window() {
+    local src_window="$1"
+    local current_wid target_prefix wid name
+
+    current_wid=$(tmux display-message -p '#{window_id}' 2>/dev/null || true)
+    target_prefix="🍽️ serving: [${src_window} - "
+
+    while IFS=$'\t' read -r wid name; do
+        [[ -z "$wid" ]] && continue
+        [[ "$wid" == "$current_wid" ]] && continue
+
+        if [[ "$name" == "$target_prefix"* ]]; then
+            log_debug "Killing existing serve window: $name"
+            tmux kill-window -t "$wid" 2>/dev/null || true
+            return 0
+        fi
+    done < <(tmux list-windows -F '#{window_id}\t#{window_name}' 2>/dev/null)
+}
+
+# @cmd Start serve for current worktree
+# @alias s
+serve() {
+    set_log_prefix "worktree:serve"
+    check_prerequisites
+
+    local serve_root
+    serve_root=$(pwd)
+
+    # Look for integration scripts in cwd first, fall back to git root
+    local integration_dir
+    integration_dir=$(get_integration_scripts_dir "$serve_root")
+    if [[ ! -d "$integration_dir" ]]; then
+        local git_root
+        git_root=$(require_git_root)
+        local fallback_dir
+        fallback_dir=$(get_integration_scripts_dir "$git_root")
+        if [[ -d "$fallback_dir" ]]; then
+            integration_dir="$fallback_dir"
+        else
+            ensure_integration_scripts "$serve_root"
+            integration_dir=$(get_integration_scripts_dir "$serve_root")
+        fi
+    fi
+
+    if [[ ! -x "$integration_dir/integration-worktree-serve" ]]; then
+        ensure_integration_scripts "$serve_root"
+        integration_dir=$(get_integration_scripts_dir "$serve_root")
+    fi
+
+    if [[ ! -x "$integration_dir/integration-worktree-serve" ]]; then
+        log_error "No integration-worktree-serve script defined. Cannot serve."
+        return 1
+    fi
+
+    local src_window src_pane
+    src_window=$(tmux display-message -p '#{window_name}' 2>/dev/null || echo "?")
+    src_pane=$(tmux display-message -p '#{pane_title}' 2>/dev/null || echo "?")
+    local window_name="🍽️ serving: [${src_window} - ${src_pane}]"
+
+    kill_existing_serve_window "$src_window"
+
+    local pane_id
+    pane_id=$(tmux new-window -a -n "$window_name" -c "$serve_root" -P -F '#{pane_id}')
+    tmux send-keys -t "$pane_id" "$integration_dir/integration-worktree-serve" Enter
+    log_success "Serve window opened: $window_name"
+}
+
+# ============================================================================
+# kill — stop any serving windows in the current session
+# ============================================================================
+
+# @cmd Kill all serving windows (windows whose name starts with "🍽️ serving") in the current session
+# @alias k
+kill() {
+    set_log_prefix "worktree:kill"
+    [[ -z "${TMUX:-}" ]] && { log_error "Not inside a tmux session"; return 1; }
+
+    local current_wid
+    current_wid=$(tmux display-message -p '#{window_id}' 2>/dev/null || true)
+
+    local found=0
+    local wid name
+    while IFS=' ' read -r wid name; do
+        [[ "$wid" == "$current_wid" ]] && continue
+        if [[ "$name" == "🍽️ serving"* ]]; then
+            log_debug "Killing serve window: $name"
+            tmux kill-window -t "$wid" 2>/dev/null || true
+            found=1
+        fi
+    done < <(tmux list-windows -F '#{window_id} #{window_name}' 2>/dev/null)
+
+    if [[ $found -eq 0 ]]; then
+        log_debug "No serving windows found."
+    fi
+}
+
+# ============================================================================
+# Simple subcommands
+# ============================================================================
+
+# @cmd Shows the true name of the project
+# @alias pn
+project-name() {
+    local git_root
+    git_root=$(require_git_root)
+    local project_name
+    project_name=$(get_project_name "$git_root")
+    echo "≡ $project_name"
+}
+
+# @cmd List linked worktrees only (not primary checkout)
+# @alias ls
+list() {
+    set_log_prefix "worktree:list"
+    require_git_root >/dev/null
+
+    local rows=()
+    local p abs branch
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        abs=$(realpath "$p")
+        branch=$(branch_for_worktree_path "$p")
+        rows+=("$abs,$branch")
+    done < <(list_secondary_worktrees)
+
+    if [[ ${#rows[@]} -eq 0 ]]; then
+        log_debug "No linked worktrees."
+        return
+    fi
+
+    {
+        echo "Path,Branch"
+        printf '%s\n' "${rows[@]}"
+    } | gum table
+}
+
+# @cmd Show path and branch only when CWD is a linked worktree (not primary checkout)
+# @alias cur
+current() {
+    require_git_root >/dev/null
+    if ! is_linked_worktree; then
+        return 1
+    fi
+    local wt_root branch
+    wt_root=$(require_git_root)
+    wt_root=$(realpath "$wt_root")
+    branch=$(branch_for_worktree_path "$wt_root")
+    printf '%s (branch: %s)\n' "$wt_root" "$branch"
+}
+
+# @cmd Show absolute path to the main repo root
+# @alias rt
+root() {
+    realpath "$(get_main_repo_root)"
+}
+
+# --- Main ---
+
+# Extract known commands and aliases dynamically from argc annotations
+KNOWN_COMMANDS=$(extract_known_commands "$0")
+
+eval "$(argc --argc-eval "$0" "$@")"

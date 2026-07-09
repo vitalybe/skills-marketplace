@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Dependency doctor for the devflow plugin.
+# Reports which runtime dependencies are present and how to install the rest.
+# Output is plain stdout so it can be injected into a skill via mdexec.
+set -uo pipefail
+
+missing=0
+say() { printf '%s\n' "$*"; }
+check() {
+  # check <command> <install-hint>
+  if command -v "$1" >/dev/null 2>&1; then
+    say "  ok    $1"
+  else
+    say "  MISS  $1 - $2"
+    missing=1
+  fi
+}
+
+say "devflow dependency check:"
+check uv   "install uv (https://docs.astral.sh/uv/) - runs the 'tasks' backend"
+check node "install Node.js - runs the 'mdexec' doc injector"
+check git  "install git"
+check argc "brew install argc (or cargo install argc) - used by 'worktree'"
+check jq   "brew install jq - used by 'worktree'"
+check jira "brew install ankitpokhrel/jira-cli/jira-cli - JIRA backend for 'tasks'"
+
+# JIRA auth: token env var, or macOS keychain entry
+if [ -n "${JIRA_API_TOKEN:-}" ]; then
+  say "  ok    JIRA token (JIRA_API_TOKEN)"
+elif command -v security >/dev/null 2>&1 \
+     && security find-generic-password -s jira-api-token -a "$USER" -w >/dev/null 2>&1; then
+  say "  ok    JIRA token (macOS keychain)"
+else
+  say "  MISS  JIRA token - set JIRA_API_TOKEN, or add keychain item (service 'jira-api-token')"
+  missing=1
+fi
+
+if [ "$missing" -eq 0 ]; then
+  say "All dependencies satisfied."
+else
+  say "Some dependencies are missing - see hints above. The flow needs these to run."
+fi
+exit "$missing"

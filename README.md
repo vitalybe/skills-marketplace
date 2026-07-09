@@ -14,9 +14,8 @@ plugins/
     skills/           # skills, agents, commands, hooks, mcp, ...
 ```
 
-The marketplace uses `metadata.pluginRoot: "./plugins"`, so plugin `source`
-entries in `marketplace.json` are written relative to `plugins/` (e.g.
-`"source": "my-plugin"` resolves to `./plugins/my-plugin`).
+Plugin `source` entries in `marketplace.json` are relative paths from the
+marketplace root and must start with `./` (e.g. `"./plugins/my-plugin"`).
 
 ## Add a plugin
 
@@ -37,7 +36,7 @@ entries in `marketplace.json` are written relative to `plugins/` (e.g.
    ```json
    {
      "name": "<plugin-name>",
-     "source": "<plugin-name>",
+     "source": "./plugins/<plugin-name>",
      "description": "What the plugin does"
    }
    ```
