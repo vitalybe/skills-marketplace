@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "vitalybe-skills",
+  "owner": {
+    "name": "Vitaly Belman",
+    "email": "vbelman@drivenets.com"
+  },
+  "description": "Personal marketplace of Claude Code plugins and skills.",
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": []
+}
