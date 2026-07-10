@@ -842,7 +842,13 @@ def _jira_multi_hop_move(cfg: Config, key: str, target: str) -> None:
 
 
 def cmd_flow_progress_get(cfg: Config, args: argparse.Namespace) -> None:
-    key = require_key(args.key)
+    # Soft key resolution: unlike other commands, a missing/underivable key is
+    # not an error here. It just means the flow hasn't been started against a
+    # tracked issue yet, so there is no recorded phase. Echo empty - callers
+    # (e.g. start-flow) map empty to the first phase and begin fresh.
+    key = args.key or branch_key()
+    if not key:
+        return
     if cfg.task_system == "linear":
         _flow_progress_get_linear(key)
     else:
