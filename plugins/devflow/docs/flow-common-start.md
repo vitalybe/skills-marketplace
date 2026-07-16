@@ -38,7 +38,7 @@ task.
 ## Plan file path
 
 <plan-path>
-!`${CLAUDE_PLUGIN_ROOT}/bin/tasks plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/tasks plan || echo [[No plan path resolved - task-less mode]]`
 </plan-path>
 
 The path above is the plan file for this task - existing if one is

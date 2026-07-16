@@ -243,6 +243,14 @@ def require_key(key: str | None) -> str:
     die(f"no issue key provided and could not derive from branch '{branch}'")
 
 
+def flow_soft_key(key: str | None) -> str | None:
+    """Resolve a key for flow-mutation commands (comment, set-state,
+    flow-progress-set). Unlike require_key, a missing/underivable key is not
+    fatal here: it means task-less mode (no tracked issue), so the caller
+    should note it and no-op. Returns the key, or None to signal 'skip'."""
+    return key or branch_key()
+
+
 def slugify(s: str) -> str:
     s = s.lower()
     s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
@@ -722,7 +730,10 @@ def cmd_comment(cfg: Config, args: argparse.Namespace) -> None:
     if positionals and is_key(positionals[0]):
         key = positionals.pop(0)
     else:
-        key = require_key(None)
+        key = flow_soft_key(None)
+        if key is None:
+            log("no tracked issue (task-less mode) - skipping comment")
+            return
 
     if args.from_file:
         p = Path(args.from_file)
@@ -805,7 +816,10 @@ def cmd_set_state(cfg: Config, args: argparse.Namespace) -> None:
     if positionals and is_key(positionals[0]):
         key = positionals.pop(0)
     else:
-        key = require_key(None)
+        key = flow_soft_key(None)
+        if key is None:
+            log("no tracked issue (task-less mode) - skipping set-state")
+            return
     if not positionals:
         die("set-state: usage: tasks set-state [KEY] STATE")
     state = positionals[0]
@@ -893,7 +907,10 @@ def cmd_flow_progress_set(cfg: Config, args: argparse.Namespace) -> None:
     if positionals and is_key(positionals[0]):
         key = positionals.pop(0)
     else:
-        key = require_key(None)
+        key = flow_soft_key(None)
+        if key is None:
+            log("no tracked issue (task-less mode) - skipping flow-progress-set")
+            return
     if not positionals:
         die("flow-progress-set: usage: tasks flow-progress-set [KEY] PHASE")
     phase = positionals[0]
@@ -925,7 +942,13 @@ def cmd_plan(cfg: Config, args: argparse.Namespace) -> None:
     if positionals and is_key(positionals[0]):
         key = positionals.pop(0)
     else:
-        key = require_key(None)
+        # Soft key: in task-less mode there is no KEY-based canonical path, so
+        # emit a marker (not a hard error) and let the caller derive the path.
+        key = flow_soft_key(None)
+        if key is None:
+            print("[[No plan path resolved - task-less mode; "
+                  "derive _plans/<slug>.md yourself]]")
+            return
     title = positionals[0] if positionals else ""
 
     _gc_temp_plans()
