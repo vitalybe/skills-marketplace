@@ -11,6 +11,11 @@
       "name": "devflow",
       "source": "./plugins/devflow",
       "description": "Structured development task workflow: requirements to plan to code to close, with sub-agent reviews and JIRA integration."
+    },
+    {
+      "name": "system-tools",
+      "source": "./plugins/system-tools",
+      "description": "Diagnostics for local machine health: investigating high CPU/memory usage, Docker container load, and related system issues."
     }
   ]
 }
