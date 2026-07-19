@@ -88,6 +88,6 @@ Substitute `<ORCH_PANE>` (your `$HERDR_PANE_ID`) and `<TARGET_PATH>` (from the
 `orchestrator-target` pointer file).
 
 When the subagent returns, act on anything actionable, then spawn the next cycle.
-To reply to / steer / stop a blocked tab, use `/herdr:task-herdr`'s
+To reply to / steer / stop a blocked tab, use `/workbench:task-herdr`'s
 `scripts/herdr-io.sh` (`send` / `stop`) - that is orchestrator work, not the
 monitor's.

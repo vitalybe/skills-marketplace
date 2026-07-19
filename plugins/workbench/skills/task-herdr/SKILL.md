@@ -1,6 +1,6 @@
 ---
 name: task-herdr
-description: Delegate a dev task by spawning it as a real `claude` agent in its own tracked herdr tab, instead of an Agent-tool subagent. Use when running inside herdr (HERDR_ENV=1) and the user wants a task run in a visible, tracked tab they can watch or talk to - phrases like "spawn this in a herdr tab", "run it as a tracked tab", "do this the herdr way", or when running several such agents in parallel and monitoring them together. If HERDR_ENV is not 1, fall back to normal Agent-tool subagents (see `/herdr:orchestrate-agents`).
+description: Delegate a dev task by spawning it as a real `claude` agent in its own tracked herdr tab, instead of an Agent-tool subagent. Use when running inside herdr (HERDR_ENV=1) and the user wants a task run in a visible, tracked tab they can watch or talk to - phrases like "spawn this in a herdr tab", "run it as a tracked tab", "do this the herdr way", or when running several such agents in parallel and monitoring them together. If HERDR_ENV is not 1, fall back to normal Agent-tool subagents (see `/workbench:orchestrate-agents`).
 ---
 
 # task-herdr - run a task in a tracked herdr tab
@@ -13,7 +13,7 @@ tabs can be monitored in parallel.
 ## Prerequisite
 
 Check `HERDR_ENV=1`. If it is not set, say you are not inside herdr and fall
-back to normal Agent-tool subagents (see `/herdr:orchestrate-agents`) - do not use this skill.
+back to normal Agent-tool subagents (see `/workbench:orchestrate-agents`) - do not use this skill.
 
 ## Opening a task
 

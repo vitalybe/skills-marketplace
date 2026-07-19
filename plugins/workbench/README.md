@@ -18,6 +18,10 @@ Invoked as `/workbench:<name>`.
 | `task-obsidian` | List, open, and create personal to-dos in the Obsidian vault via `obsidian-tasks`. |
 | `wiki` | Read from and write to the personal Obsidian knowledge vault (routes via the vault's own `CLAUDE.md`). |
 | `schedule-work-meeting` | Schedule a meeting end-to-end: resolve attendees, find a free slot, open a prefilled Outlook invite. |
+| `orchestrate-agents` | Manager-mode: spawn several subagents in their own worktrees, each taking one whole task end-to-end (via devflow), coordinating waves and serializing merges. |
+| `task-herdr` | Delegate one task as a real `claude` agent in its own tracked herdr tab (visible, watchable) instead of an Agent-tool subagent. |
+| `orchestrator-init` | Establish and keep current the session's live markdown status document, delegating monitoring to a subagent. |
+| `herdr-watch-pane` | Event-driven monitoring of a sibling herdr pane: a debounced background watcher re-invokes you only when the pane settles after a real change. |
 
 ## Prerequisites
 
@@ -32,6 +36,8 @@ The skill **files** ship with the plugin; their **runtimes, CLIs, and credential
 | `skill-improve-session` | `node` + `pnpm` (installs the bundled parser deps on first run). |
 | `browser-automation-explore-and-script` | `node`; Puppeteer/Playwright installed in the target project. |
 | `code-varlock` | `pnpm`; `varlock` in the target project. |
+| `task-herdr`, `orchestrator-init`, `herdr-watch-pane` | the `herdr` CLI, running inside herdr (`HERDR_ENV=1`); `python3` for `orchestrator-init`. These no-op outside herdr. |
+| `orchestrate-agents` | `git`; the devflow plugin (`devflow@vitalybe-skills`) - each subagent runs its Code step. Works outside herdr. |
 
 ## Install
 

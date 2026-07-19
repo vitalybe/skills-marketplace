@@ -5,8 +5,8 @@ description: Initialize an orchestration session's live status document (the "ta
 
 # orchestrator-init - establish the session status doc
 
-An orchestration session runs several tasks in parallel (via `/herdr:orchestrate-agents`
-subagents and/or `/herdr:task-herdr` tabs). This skill sets up the single markdown
+An orchestration session runs several tasks in parallel (via `/workbench:orchestrate-agents`
+subagents and/or `/workbench:task-herdr` tabs). This skill sets up the single markdown
 **status document** ("the target") for the session and defines the contract
 for keeping it current. It does not open or monitor tasks.
 
@@ -81,4 +81,4 @@ next cycle. A ready-to-use subagent prompt is in
 
 - Doc structure and line format: [references/status-doc-format.md](references/status-doc-format.md).
 - The tracker + monitoring-subagent contract: [references/monitoring.md](references/monitoring.md).
-- Opening the tasks themselves, and interacting with a tab (send / stop): `/herdr:orchestrate-agents` / `/herdr:task-herdr`.
+- Opening the tasks themselves, and interacting with a tab (send / stop): `/workbench:orchestrate-agents` / `/workbench:task-herdr`.
