@@ -1,0 +1,9 @@
+{
+  "name": "herdr",
+  "description": "Multi-agent orchestration for the herdr terminal environment: run tasks as tracked herdr tabs, manage parallel subagents in worktrees, keep a live status document, and watch sibling panes event-driven. Requires the herdr CLI.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Vitaly Belman",
+    "email": "vbelman@drivenets.com"
+  }
+}

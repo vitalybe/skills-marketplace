@@ -16,6 +16,16 @@
       "name": "system-tools",
       "source": "./plugins/system-tools",
       "description": "Diagnostics for local machine health: investigating high CPU/memory usage, Docker container load, and related system issues."
+    },
+    {
+      "name": "workbench",
+      "source": "./plugins/workbench",
+      "description": "Everyday work and home skills: git commits and local merges, varlock env schemas, logging refactors, JIRA and Obsidian tasks, personal wiki, meeting scheduling, browser-automation scripting, and improving skills from a session."
+    },
+    {
+      "name": "herdr",
+      "source": "./plugins/herdr",
+      "description": "Multi-agent orchestration for the herdr terminal: tasks as tracked tabs, parallel subagents in worktrees, a live status document, and event-driven pane watching."
     }
   ]
 }
