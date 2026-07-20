@@ -37,7 +37,10 @@ Check off (`- [x]`) once decided.
 Grouped by `### <Project>` headings. One checkbox line per task:
 
 - `- [ ]` in-flight / `- [x]` done
-- task name - optionally an Obsidian `[[wiki-link|Name]]` to a per-task subpage
+- a 🟡 prefix on items actively in progress, e.g. `- [ ] 🟡 **Name** - ...`
+- task name in **bold** - optionally an Obsidian `[[tasks/<Name>|Name]]` link
+  (wrapped in the bold) to a per-task subpage in the `tasks/` subfolder relative
+  to this doc, used when the task carries extra detail
 - `(branch-or-slug, PR #NNN)` when applicable
 - ` - ` then a short current status (e.g. "running", "code-review",
   "merged; <one-line what/why>")
@@ -47,18 +50,20 @@ Grouped by `### <Project>` headings. One checkbox line per task:
 
 ### Orchestrator
 
-- [ ] [[AIE - Orchestrator - Rewind a session|Rewind a session]] (orchestrator-rewind-session, PR #237) - code-review
-- [x] [[AIE - Orchestrator - Mock scenario dropdown|Mock scenario dropdown]] (orchestrator-mock-scenario-dropdown, PR #242) - merged; rebased onto main, unit 108 + e2e 5 green
+- [ ] 🟡 **[[tasks/AIE - Orchestrator - Rewind a session|Rewind a session]]** (orchestrator-rewind-session, PR #237) - code-review
+- [x] **[[tasks/AIE - Orchestrator - Mock scenario dropdown|Mock scenario dropdown]]** (orchestrator-mock-scenario-dropdown, PR #242) - merged; rebased onto main, unit 108 + e2e 5 green
 
 ### Tooling
 
-- [x] Stop tracking varlock-generated `env.d.ts` (gitignore-varlock-env-dts, PR #240) - merged
+- [x] **Stop tracking varlock-generated `env.d.ts`** (gitignore-varlock-env-dts, PR #240) - merged
 ```
 
 ## Conventions
 
 - Group by `### <Project>` in both sections.
-- One line per task; keep the status short.
+- One line per task; keep the status short. Extra detail goes to a per-task
+  subpage in the `tasks/` subfolder relative to this doc.
+- Bold the task name; prefix actively in-progress tasks with 🟡.
 - Active/recent items near the top of their group.
 - Reference external plan files by absolute path as `[[external:<abs-path>]]`.
 - Current-state voice: describe how things are now, no "was X now Y" history.
