@@ -9,6 +9,7 @@ Invoked as `/workbench:<name>`.
 | Skill | Role |
 |---|---|
 | `git-commit` | Split uncommitted changes into logical, well-scoped commits via a forked subagent. |
+| `git-commit-worktree` | Move the current work into a per-task worktree+branch (slugged to the task) and commit it there; no-ops to `git-commit` if already in a worktree. |
 | `git-merge-local` | Merge the current branch into the default branch locally with `--no-ff`, including worktree cleanup. |
 | `code-varlock` | Set up, extend, or debug a varlock env schema (validation, type generation, 1Password secrets). |
 | `code-refactor-logging` | Refactor console/log output to structured logging standards (levels, colors, prefixes). |
@@ -21,6 +22,7 @@ Invoked as `/workbench:<name>`.
 | `orchestrate-agents` | Manager-mode: spawn several subagents in their own worktrees, each taking one whole task end-to-end (via devflow), coordinating waves and serializing merges. |
 | `task-herdr` | Delegate one task as a real `claude` agent in its own tracked herdr tab (visible, watchable) instead of an Agent-tool subagent. |
 | `orchestrator-init` | Establish and keep current the session's live markdown status document, delegating monitoring to a subagent. |
+| `orchestrator-drive` | Take over and drive a named orchestration task's in-pane gates to completion on the user's explicit request (marks it 🚗 in the tab and status doc). |
 | `herdr-watch-pane` | Event-driven monitoring of a sibling herdr pane: a debounced background watcher re-invokes you only when the pane settles after a real change. |
 
 ## Prerequisites
