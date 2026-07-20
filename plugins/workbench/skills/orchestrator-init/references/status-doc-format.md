@@ -58,7 +58,7 @@ Grouped by `### <Project>` headings. One checkbox line per task:
 ## Conventions
 
 - Group by `### <Project>` in both sections.
-- One line per task; keep the status short.
+- One line per task; keep the status short. Extra details go to subpage.
 - Active/recent items near the top of their group.
 - Reference external plan files by absolute path as `[[external:<abs-path>]]`.
 - Current-state voice: describe how things are now, no "was X now Y" history.

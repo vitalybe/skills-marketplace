@@ -34,51 +34,92 @@ are ever unsure which doc is the target (e.g. after a compaction), read the
 pointer file to recover it, then keep using that doc for the rest of the
 session.
 
-## 3. Keep it live - via a monitoring subagent
+## 3. Keep it live - an orchestrator-owned tracker
 
-You (the orchestrator) do **not** poll panes or hand-edit the doc during the
-session. Monitoring, reading the monitor output, and writing/editing the target
-doc are delegated to a **monitoring subagent** so that noise (every poll, every
-pane read, every doc edit) stays out of your context. You are made aware only of
-**what changed** - child status transitions, new/finished tasks, open questions,
-blocked gates - and act on those.
+Track the running tasks by owning a background tracker, and keep the noisy work
+(polling, pane reads, doc edits) out of your main context.
 
-Each monitoring **cycle** is one fresh subagent (spawn it in the background with
-the Agent tool, `general-purpose`). The cycle:
+Run the child tracker as a `run_in_background` Bash process **you own** - never a
+blocking loop inside a subagent. A subagent's Bash call is capped (~600s); a
+tracker that blocks past it is orphaned, the subagent returns a false "still
+waiting", and duplicate trackers pile up racing the state file. As an owned
+background process the tracker has no cap and the harness re-invokes you when it
+exits:
 
-1. Runs the tracker once - it blocks until a **settled change**, persisting
-   state in `/tmp/herdr-monitoring/` so the next cycle continues seamlessly:
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/track-children.py --parent <YOUR_PANE>
+```
 
-   ```bash
-   ${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/track-children.py --parent <YOUR_PANE>
-   ```
+`<YOUR_PANE>` is your `$HERDR_PANE_ID`. It blocks until a child's status settles
+(or a child appears/disappears), persists state in `/tmp/herdr-monitoring/`,
+prints the change JSON (also `/tmp/herdr-monitoring/latest.json`), and exits.
+Behaviour and report shape: [references/monitoring.md](references/monitoring.md).
+Keep exactly one tracker alive; relaunch exactly one per exit (no `--reset` - the
+baseline persists across the gap).
 
-   `<YOUR_PANE>` is the orchestrator's `$HERDR_PANE_ID` - the pane whose child
-   agents are the tracked tasks. See
-   [references/monitoring.md](references/monitoring.md) for the tracker's
-   behaviour (20s steady poll, 5s parallel per-child debounce, 60s max, exit on
-   a settled status/membership change).
+On each exit, handle the change - you may offload the pane-read + doc-edit to a
+**bounded, non-blocking** subagent to keep that noise out of your context - under
+these rules:
 
-2. Reads the change report (the tracker's stdout / `/tmp/herdr-monitoring/latest.json`).
-   For any child that went `blocked` or `done`, reads that pane
-   (`herdr pane read <pane> --source recent`) to pull out the GATE question /
-   result.
+- **`idle`/`done` from the tracker means the agent went idle, NOT that it
+  finished.** herdr's label is unreliable and inconsistent: the same
+  waiting-at-a-gate state can surface as `blocked`, `idle`, or `done` across
+  agents. **Always read the pane** (`herdr pane read <pane> --source recent`)
+  before classifying. A task parked at a requirements/plan/permission gate is
+  **waiting for input** - label it that, never "done". Treat a task as finished
+  only once the pane says the code phase is complete/committed AND its branch has
+  real implementation commits.
+- **Never auto-merge, integrate, close, or clean up.** When a task genuinely
+  finishes, surface "X is ready to integrate" and wait for the user's **explicit
+  confirmation** before merging. Never close herdr tabs.
+- **Do not proxy in-pane gates.** The user answers requirements/plan/permission
+  gates directly in the tab; you summarize them in the doc - you do not relay
+  them via AskUserQuestion or answer them yourself. Send input to a tab only for
+  an obvious self-serve action (e.g. a design upload you can do yourself).
+- Update the target doc to current state per
+  [references/status-doc-format.md](references/status-doc-format.md) -
+  current-state voice, no "was X now Y".
 
-3. Edits the target doc to current state per
-   [references/status-doc-format.md](references/status-doc-format.md) - task
-   status lines and open questions. Current-state voice; no "was X now Y".
+Then relaunch one tracker and continue.
 
-4. Returns a **concise** summary to you: which tasks changed state, plus any open
-   questions / blocked gates that need a decision or a reply. Nothing else.
+## 4. Dispatch new pending tasks (optional)
 
-When a cycle returns, you: handle anything actionable (reply to / steer / stop a
-blocked tab, open follow-up tasks, surface a decision to the user), then **spawn
-the next monitoring cycle** to continue. If nothing is actionable, just spawn the
-next cycle. A ready-to-use subagent prompt is in
+If the user wants new items they drop under a `## Pending tasks` heading to be
+picked up and spawned automatically, run the **pending-tasks watcher** alongside
+the monitor. The watcher is `scripts/watch-pending.py`; it blocks until newly
+added pending items settle, then prints them as JSON.
+
+Run it as an **orchestrator-owned background process** - NOT inside a subagent. A
+blocking watcher inside a subagent gets orphaned when the subagent's Bash call
+hits its ~600s cap, returns a false "still waiting", and leaves duplicate loops
+racing the shared state file. As a `run_in_background` Bash process it has no cap
+and the harness re-invokes you when it exits:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/watch-pending.py \
+  --file "<TARGET>" --state-dir <scratchpad>/pending-watch --max-wait 3300
+```
+
+**Seed the baseline first** so items already present at session start do not
+auto-fire (`--seed`); only items added/edited afterward trigger a dispatch. On
+each exit:
+
+- If `added` is non-empty, **dispatch each item** via `/workbench:task-herdr`:
+  pass the item's intent + the integration rule and let task-herdr author the
+  exact prompt and spawn the tab. The orchestrator does NOT write prompt prose
+  and does NOT pick the route - task-herdr tells the agent to run devflow, and
+  devflow triages the depth (fast-path vs full flow) itself. Move the item's
+  block from `## Pending tasks` into `## Tasks`. Dispatch is bounded, non-blocking
+  work (a `sonnet` subagent is fine) that must NOT itself run any watcher.
+- Then **relaunch exactly one** watcher in the background (no `--reset` - the
+  baseline persists across the exit/relaunch gap so nothing is missed).
+
+Keep exactly one watcher alive; relaunch one per exit. Full contract:
 [references/monitoring.md](references/monitoring.md).
 
 ## Pointers
 
 - Doc structure and line format: [references/status-doc-format.md](references/status-doc-format.md).
-- The tracker + monitoring-subagent contract: [references/monitoring.md](references/monitoring.md).
+- The tracker contract and the pending-tasks watcher: [references/monitoring.md](references/monitoring.md).
 - Opening the tasks themselves, and interacting with a tab (send / stop): `/workbench:orchestrate-agents` / `/workbench:task-herdr`.
+- task-herdr owns the exact prompt text for a spawned tab; callers pass intent + flags (integration, optional route override) and defer to it. Route depth is decided by devflow's triage, not the orchestrator.

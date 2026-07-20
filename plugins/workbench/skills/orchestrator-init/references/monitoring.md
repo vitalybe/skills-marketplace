@@ -1,13 +1,15 @@
-# Monitoring - the tracker and the monitoring subagent
+# Monitoring - the tracker, and handling its exits
 
-Monitoring is split in two so the orchestrator's context stays clean:
+Monitoring is split so the orchestrator's context stays clean:
 
 - **`scripts/track-children.py`** - a one-shot tracker. It blocks until a
   *settled* change among the orchestrator's child agents, prints that change,
   and exits. It never loops inside the orchestrator.
-- **The monitoring subagent** - a fresh `general-purpose` Agent per cycle that
-  runs the tracker, updates the status doc, and returns a short summary. The
-  orchestrator re-spawns it each cycle. The orchestrator itself never polls.
+- **The orchestrator owns the loop.** It runs the tracker as a
+  `run_in_background` process (NOT inside a subagent), handles each exit, then
+  relaunches exactly one tracker. The pane-read + doc-edit work can be offloaded
+  to a bounded, non-blocking subagent so that noise stays out of the
+  orchestrator's context.
 
 ## The tracker
 
@@ -60,34 +62,99 @@ start a fresh baseline.
 appear/disappear; `timed_out` means the child settled by the 60s cap rather than
 by stabilising.
 
-## The monitoring subagent
+## Handling a tracker exit
 
-Spawn one fresh `general-purpose` Agent **per cycle**, in the background. Give it
-the orchestrator's pane id and the target-doc path. Reusable prompt:
+Run the tracker as an orchestrator-owned `run_in_background` Bash process - never
+as a blocking call inside a subagent. A subagent's Bash is capped (~600s); the
+blocked tracker is orphaned, the subagent returns a false "still waiting", and
+duplicate trackers accumulate and race the state file. Keep exactly one alive;
+relaunch exactly one per exit, WITHOUT `--reset` (the baseline persists, so the
+exit/relaunch gap misses nothing).
 
+On each exit read `latest.json` and handle every change. You may offload the pane
+reads + doc edit to a **bounded, non-blocking** subagent (a `general-purpose`
+Agent that runs NO watcher/tracker and no blocking loop) to keep that noise out
+of your context; give it the pane ids, the target-doc path, and the rules below.
+
+Rules for classifying and acting on a change:
+
+- **`to` = `idle` or `done` does NOT mean finished.** It means the agent went
+  idle - which includes sitting at an approval / permission / requirements gate.
+  herdr's label is inconsistent: the same waiting-at-a-gate state surfaces as
+  `blocked` on one agent and `idle` or `done` on another. ALWAYS
+  `herdr pane read <pane> --source recent` before classifying. A task parked at a
+  gate is **waiting for input** - label it that, never "done". A task is finished
+  only once the pane says the code phase is complete/committed AND its branch has
+  real implementation commits.
+- **Never auto-merge, integrate, close, or clean up.** On a genuine finish,
+  surface "X is ready to integrate" and wait for the user's **explicit
+  confirmation** before merging. Never close herdr tabs.
+- **Do not proxy in-pane gates.** The user answers requirements / plan /
+  permission gates directly in the tab; summarize them in the doc - do not relay
+  them via AskUserQuestion or answer them yourself. Send input to a tab only for
+  an obvious self-serve action (e.g. a design upload the orchestrator can do
+  itself), via `/workbench:task-herdr`'s `scripts/herdr-io.sh` (`send` / `stop`).
+- Update the status doc to current state per
+  [status-doc-format.md](status-doc-format.md) - current-state voice; never write
+  "was X now Y".
+
+`<ORCH_PANE>` is your `$HERDR_PANE_ID`; `<TARGET_PATH>` comes from the
+`orchestrator-target` pointer file.
+
+## The pending-tasks watcher (task-creator)
+
+An optional second loop that dispatches new work the user drops under a
+`## Pending tasks` heading in the status doc. It is independent of the child
+tracker: the tracker watches *running* tabs, this watches the *doc* for new
+items to spawn.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/watch-pending.py \
+  --file "<TARGET>" --state-dir <scratchpad>/pending-watch --max-wait 3300
 ```
-You are the monitoring subagent for an orchestration session. Do NOT touch any
-task worktree or code. One cycle only, then report back and exit.
 
-1. Run the tracker (it blocks until a settled change, then exits):
-     ${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/track-children.py --parent <ORCH_PANE>
-2. Read its JSON output (also at /tmp/herdr-monitoring/latest.json). For every
-   child whose "to" is "blocked" or "done", read that pane to get the gate
-   question / result:
-     herdr pane read <pane> --source recent
-3. Edit the status doc at <TARGET_PATH> to current state, following
-   ${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/references/status-doc-format.md - update
-   the changed tasks' status lines and any open questions. Current-state voice;
-   never write "was X now Y".
-4. Return a CONCISE summary and stop: for each changed task, "<name>: <old> ->
-   <new>", and list any open questions / blocked gates that need an
-   orchestrator decision or a reply to the tab. Nothing else - no narration.
-```
+It parses the `## Pending tasks` section: each top-level `- [ ]` line with a
+non-empty title (plus its indented sub-bullets) is an item. Checked (`- [x]`)
+and empty-title lines are ignored. Behaviour:
 
-Substitute `<ORCH_PANE>` (your `$HERDR_PANE_ID`) and `<TARGET_PATH>` (from the
-`orchestrator-target` pointer file).
+1. **Steady phase** - re-check every **15s** (`--poll`) until the set of item
+   titles differs from the persisted baseline.
+2. **Debounce phase** - once something differs, settle changes every **5s**
+   (`--debounce`), capped at **60s** (`--max`), so a user still typing does not
+   fire a half-written item.
+3. On a settled change with **newly added** items, print
+   `{"added":[{title,block}...], "all_current":[...]}` and **exit 0**. A
+   removal-only change (items moved out to `## Tasks`) is folded into the
+   baseline silently and polling continues.
+4. With `--max-wait` set, exit 0 with `{"added":[], "timed_out":true}` after that
+   many idle seconds, so the caller can relaunch cleanly instead of being killed
+   by a shell timeout.
 
-When the subagent returns, act on anything actionable, then spawn the next cycle.
-To reply to / steer / stop a blocked tab, use `/workbench:task-herdr`'s
-`scripts/herdr-io.sh` (`send` / `stop`) - that is orchestrator work, not the
-monitor's.
+Modes: `--seed` (baseline := current items, then exit - run this once at setup so
+pre-existing items do not auto-fire), `--once` (single check vs baseline),
+`--reset` (clear baseline first). State is `<state-dir>/baseline.json` (a list of
+item titles), persisted so a relaunch misses nothing across the exit/relaunch gap.
+
+### Run it as an orchestrator-owned background process
+
+Do NOT run this blocking watcher inside a subagent: the subagent's Bash call is
+capped (~600s); when the watcher blocks past that it is orphaned to the
+background, the subagent returns a false "still waiting", and duplicate loops
+pile up racing `baseline.json`. Instead the orchestrator owns the loop as a
+`run_in_background` Bash process (no cap; the harness re-invokes the orchestrator
+when it exits). Keep EXACTLY ONE watcher alive; relaunch exactly one per exit.
+
+On each exit the orchestrator, INLINE:
+
+- If `added` is non-empty, spawn a bounded **dispatch subagent** (a `sonnet`
+  `general-purpose` Agent that does non-blocking work and runs NO watcher). For
+  each added item it: decides the route (`simple` for a trivial/visual tweak,
+  `devflow` for a real feature - default `devflow` when unsure) and the
+  integration rule (e.g. `no-pr` on a side branch), then dispatches via
+  `/workbench:task-herdr`, **letting task-herdr author the exact prompt** from
+  the item's intent + route + flags. It moves the item's block from
+  `## Pending tasks` to `## Tasks` and records the spawn JSON.
+- Then **relaunches** exactly one watcher in the background (no `--reset`).
+
+The dispatch subagent never writes prompt prose itself - task-herdr is the single
+owner of the spawned tab's prompt text.
