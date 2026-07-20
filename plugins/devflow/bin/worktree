@@ -423,7 +423,7 @@ add() {
         log_debug "Generating branch name..."
         branch_name=$(resolve_branch_name "$task_id") || return 1
         log_value "Branch name" "$branch_name"
-        initial_prompt="/g-flow-next"
+        initial_prompt="/devflow:start-flow"
     fi
 
     log_value "Worktree path" "$worktree_path"

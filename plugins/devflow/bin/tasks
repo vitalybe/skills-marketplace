@@ -60,7 +60,7 @@ EPIC_CACHE_TTL = 86400
 VALID_ISSUE_TYPES = ["Task", "Sub-task", "Bug", "Story", "Epic"]
 
 # Canonical status name -> JIRA status. Canonical names match those used by
-# `tasks set-state` callers and the g-flow skills.
+# `tasks set-state` callers and the devflow skills.
 JIRA_STATUS_MAP = {
     "Backlog": "Backlog",
     "Todo": "To Do",
