@@ -20,6 +20,10 @@
 #   --title TITLE        Human agent name (herdr uses it as the agent's name; no
 #                        prefix). Capped to 29 chars (under 30). Defaults to the
 #                        slug (also capped).
+#   --tab-number N       Optional ordinal for the tab label. When set, the tab is
+#                        labeled "T<N> - <title>" (prefix on the TAB label only;
+#                        the agent name stays the raw title). Used by the
+#                        orchestrator to number tabs by chronological spawn order.
 #   --parent TARGET      Parent pane/agent to register under. Default:
 #                        $HERDR_PANE_ID (the orchestrator's pane). Required -
 #                        the point is to register a tracked child agent.
@@ -33,12 +37,13 @@ set -euo pipefail
 
 die() { echo "spawn-herdr-task: $*" >&2; exit 1; }
 
-SLUG=""; PROMPT_FILE=""; TITLE=""; PARENT="${HERDR_PANE_ID:-}"; BASE="origin/main"; WORKSPACE=""; REPO_ROOT=""
+SLUG=""; PROMPT_FILE=""; TITLE=""; PARENT="${HERDR_PANE_ID:-}"; BASE="origin/main"; WORKSPACE=""; REPO_ROOT=""; TAB_NUMBER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --slug)        SLUG="$2"; shift 2 ;;
     --prompt-file) PROMPT_FILE="$2"; shift 2 ;;
     --title)       TITLE="$2"; shift 2 ;;
+    --tab-number)  TAB_NUMBER="$2"; shift 2 ;;
     --parent)      PARENT="$2"; shift 2 ;;
     --base)        BASE="$2"; shift 2 ;;
     --workspace)   WORKSPACE="$2"; shift 2 ;;
@@ -62,6 +67,17 @@ if [ "${#TITLE}" -gt 29 ]; then
   TITLE="${TITLE:0:29}"
 fi
 
+# Tab label: the raw title, optionally prefixed "T<N> - " when --tab-number is
+# given. The prefix is on the TAB label only (what shows in the tab bar); the
+# agent name stays the raw TITLE so tracker reports read cleanly.
+TAB_LABEL="$TITLE"
+if [ -n "$TAB_NUMBER" ]; then
+  case "$TAB_NUMBER" in
+    ''|*[!0-9]*) die "--tab-number must be a positive integer, got: $TAB_NUMBER" ;;
+  esac
+  TAB_LABEL="T${TAB_NUMBER} - ${TITLE}"
+fi
+
 if [ -z "$REPO_ROOT" ]; then
   REPO_ROOT="$(git rev-parse --show-toplevel)" || die "not in a git repo"
 fi
@@ -83,7 +99,7 @@ fi
 # 3. create a dedicated tab (labeled with the title). A fresh tab always comes
 #    with a root shell pane; we launch the agent as a split of it and then close
 #    that shell (step 5) so the tab ends up holding only the agent.
-TAB_JSON="$(herdr tab create --workspace "$WORKSPACE" --label "$TITLE" --no-focus)"
+TAB_JSON="$(herdr tab create --workspace "$WORKSPACE" --label "$TAB_LABEL" --no-focus)"
 read -r NEW_TAB ROOT_SHELL <<EOF
 $(printf '%s' "$TAB_JSON" | python3 -c '
 import sys, json
@@ -116,9 +132,10 @@ AGENT_PARENT="$(herdr agent set-parent "$ROOT_PANE" "$PARENT" | python3 -c 'impo
   || die "failed to set agent parent"
 
 # 6. machine-readable summary for the caller (task-tool registration).
-#    tab_label kept for back-compat = the title (no prefix); root_pane = the
-#    agent's pane_id; parent = the orchestrator pane it is tracked under.
-python3 - "$SLUG" "$AGENT_NAME" "$WORKTREE" "$SLUG" "$WORKSPACE" "$TAB_ID" "$AGENT_NAME" "$ROOT_PANE" "$PROMPT_FILE" "$AGENT_PARENT" <<'PY'
+#    tab_label = the actual tab label (carries the "T<N> - " prefix when
+#    --tab-number was set); root_pane = the agent's pane_id; parent = the
+#    orchestrator pane it is tracked under.
+python3 - "$SLUG" "$AGENT_NAME" "$WORKTREE" "$SLUG" "$WORKSPACE" "$TAB_ID" "$TAB_LABEL" "$ROOT_PANE" "$PROMPT_FILE" "$AGENT_PARENT" <<'PY'
 import sys, json
 keys = ["slug","title","worktree","branch","workspace","tab_id","tab_label","root_pane","prompt_file","parent"]
 print(json.dumps(dict(zip(keys, sys.argv[1:])), indent=2))

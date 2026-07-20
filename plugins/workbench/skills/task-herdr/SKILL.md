@@ -38,6 +38,7 @@ Inputs a caller provides:
 | **integration** | `pr` (let devflow run through its close phase) or `no-pr` (side branch: stop before close, integrate separately). |
 | **tracker key** | optional; if absent, devflow runs **task-less**. |
 | **route override** | optional; omit to let devflow triage. Set `fast path` or `full flow` only to force devflow's route. |
+| **tab number** | optional ordinal for the tab label. An orchestrator passes the next number from its counter so tabs read `T<n> - <Name>` by spawn order; a standalone caller omits it. |
 
 ## Writing the prompt (the template)
 
@@ -98,7 +99,9 @@ STOP and ask rather than guess.
 1. **Generate a slug and title** - a short descriptive kebab-case branch slug
    (for a tracker task, append the key, e.g. `mock-scenario-dropdown-AIE-370`).
    The **title must be under 30 characters** - herdr uses it directly as the
-   agent's name (the script caps it defensively at 29 chars).
+   agent's name (the script caps it defensively at 29 chars). Do NOT put a
+   `T<n> -` prefix in the title; the ordinal goes to `--tab-number` (below), which
+   prefixes the tab label only and leaves the agent name clean.
 
 2. **Write the prompt to a temp file** per the template above.
 
@@ -112,8 +115,12 @@ STOP and ask rather than guess.
 
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/spawn-herdr-task.sh \
-     --slug <slug> --title "<title>" --prompt-file <tmpfile>
+     --slug <slug> --title "<title>" --prompt-file <tmpfile> [--tab-number <n>]
    ```
+
+   Pass `--tab-number <n>` when a caller supplied a tab number, so the tab is
+   labeled `T<n> - <title>`. The prefix lands on the **tab label** only; the
+   herdr agent name stays the raw title so tracker reports read cleanly.
 
    It prints a JSON summary (`slug`, `title`, `worktree`, `branch`,
    `workspace`, `tab_id`, `tab_label`, `root_pane`, `prompt_file`, `parent`).

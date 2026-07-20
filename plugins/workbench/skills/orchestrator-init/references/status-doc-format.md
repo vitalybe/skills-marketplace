@@ -64,6 +64,10 @@ Grouped by `### <Project>` headings. One checkbox line per task:
 - One line per task; keep the status short. Extra detail goes to a per-task
   subpage in the `tasks/` subfolder relative to this doc.
 - Bold the task name; prefix actively in-progress tasks with 🟡.
+- Prefix a task the orchestrator is auto-driving (per `/workbench:orchestrator-drive`)
+  with 🚗 instead of 🟡, and note it in the status text, e.g.
+  `- [ ] 🚗 **Name** - auto-driving; approved plan, in Code`. Drop the 🚗 back to
+  🟡 (or 🟢/checked) once driving ends or the task reaches "ready to integrate".
 - Active/recent items near the top of their group.
 - Reference external plan files by absolute path as `[[external:<abs-path>]]`.
 - Current-state voice: describe how things are now, no "was X now Y" history.

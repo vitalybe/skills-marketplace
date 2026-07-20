@@ -94,6 +94,8 @@ Rules for classifying and acting on a change:
   them via AskUserQuestion or answer them yourself. Send input to a tab only for
   an obvious self-serve action (e.g. a design upload the orchestrator can do
   itself), via `/workbench:task-herdr`'s `scripts/herdr-io.sh` (`send` / `stop`).
+  The sole exception is a task the user explicitly told you to drive - then answer
+  that task's gates per `/workbench:orchestrator-drive`.
 - Update the status doc to current state per
   [status-doc-format.md](status-doc-format.md) - current-state voice; never write
   "was X now Y".
@@ -148,13 +150,15 @@ On each exit the orchestrator, INLINE:
 
 - If `added` is non-empty, spawn a bounded **dispatch subagent** (a `sonnet`
   `general-purpose` Agent that does non-blocking work and runs NO watcher). For
-  each added item it: decides the route (`simple` for a trivial/visual tweak,
-  `devflow` for a real feature - default `devflow` when unsure) and the
-  integration rule (e.g. `no-pr` on a side branch), then dispatches via
-  `/workbench:task-herdr`, **letting task-herdr author the exact prompt** from
-  the item's intent + route + flags. It moves the item's block from
+  each added item it: passes the item's intent + the integration rule (e.g.
+  `no-pr` on a side branch) + the next tab number to `/workbench:task-herdr`,
+  **letting task-herdr author the exact prompt** and spawn the tab. It does NOT
+  pick a route - task-herdr tells the agent to run devflow and devflow triages the
+  depth (fast-path vs full flow) itself. It moves the item's block from
   `## Pending tasks` to `## Tasks` and records the spawn JSON.
 - Then **relaunches** exactly one watcher in the background (no `--reset`).
 
 The dispatch subagent never writes prompt prose itself - task-herdr is the single
-owner of the spawned tab's prompt text.
+owner of the spawned tab's prompt text. Tab numbers come from the
+`<scratchpad>/tab-counter` pointer (see orchestrator-init §5); read-and-increment
+it per spawn so tabs are labeled `T<n> - <Name>` by spawn order.
