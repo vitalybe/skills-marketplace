@@ -95,13 +95,15 @@ rationale. The concrete fixes usually take one of these shapes:
 
 - **Add missing syntax** to a SKILL.md's common-operations section.
 - **Add a Common Mistakes section** (or entry) for a gotcha the model hit.
-- **Replace an optional link with dynamic injection** - a bang-prefixed backtick
-  command (bang, then a backticked `cat <file>`) that the harness runs at load
-  time - so the model always sees the reference instead of choosing whether to
-  open it. Write this example WITHOUT placing a bang directly before a backtick
-  anywhere in the file: the harness executes every bang-backtick directive it
-  finds in a loaded skill, ignoring markdown code fencing, so a literal example
-  of the syntax will run at load time and can break the whole skill.
+- **Replace an optional link with dynamic injection** - a load-time include: a
+  bang character immediately followed by a backtick-wrapped shell command (a cat
+  of the reference file), which the harness runs when the skill loads - so the
+  model always sees the reference instead of choosing whether to open it.
+  Describe this technique in prose only. Never write the literal bang-then-
+  backtick token anywhere in a skill file, and never put a cat command inside a
+  backtick code span: the harness executes every such directive it finds in a
+  loaded skill, ignoring markdown code fencing, so even an "example" runs at load
+  time and can break the whole skill (it broke this skill's own loading once).
 - **Add an explicit warning** for surprising or destructive behavior.
 - **Update a shared reference file** if it was incomplete or wrong.
 - **Add a permission entry** for a frequently-used safe command.
