@@ -11,31 +11,68 @@ task, and commit it there with `/workbench:git-commit`. The source branch is
 left clean, pointing back at its upstream base.
 
 This skill runs inline (it changes directory and then delegates to the forked
-`git-commit`), so it does NOT run in a fork itself.
+`git-commit`), so it does NOT run in a fork itself. Running inline is also what
+lets the pre-loaded state below capture the source checkout.
 
-## 1. Survey state
+## Pre-loaded state
 
-Run these together:
+These blocks are captured at load time, in the directory this skill was invoked
+from - the source checkout, before any worktree exists. Read them first; you
+usually do not need to re-run these commands. Re-run one only if its block is
+empty or errored, or to get fresh state after you stash, reset, or `cd`.
 
-```bash
-git rev-parse --show-toplevel
-git rev-parse --git-dir
-git rev-parse --git-common-dir
-git rev-parse --abbrev-ref HEAD
-git status --short
-git worktree list --porcelain
-git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@'
-```
+<toplevel>
+!`git rev-parse --show-toplevel 2>&1`
+</toplevel>
 
-Determine:
+<git-dir>
+!`git rev-parse --git-dir 2>&1`
+</git-dir>
 
-- **In a linked worktree?** True when `git rev-parse --git-dir` differs from
-  `git rev-parse --git-common-dir`.
-- **Current branch** = `--abbrev-ref HEAD` (the source branch).
-- **Default branch** = the `symbolic-ref` output; if empty, fall back to
-  whichever of `main` / `master` exists (`git rev-parse --verify <name>`). If
-  still ambiguous, ask.
-- **Dirty?** `git status --short` is non-empty.
+<git-common-dir>
+!`git rev-parse --git-common-dir 2>&1`
+</git-common-dir>
+
+<current-branch>
+!`git rev-parse --abbrev-ref HEAD 2>&1`
+</current-branch>
+
+<status-short>
+!`git status --short 2>&1`
+</status-short>
+
+<worktree-list>
+!`git worktree list --porcelain 2>&1`
+</worktree-list>
+
+<default-branch>
+!`git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@'`
+</default-branch>
+
+<base-against-origin-head>
+!`git merge-base HEAD refs/remotes/origin/HEAD 2>/dev/null`
+</base-against-origin-head>
+
+<local-commits-ahead>
+!`git rev-list --count refs/remotes/origin/HEAD..HEAD 2>/dev/null`
+</local-commits-ahead>
+
+## 1. Read the surveyed state
+
+Work from the pre-loaded blocks above. Determine:
+
+- **In a linked worktree?** True when `<git-dir>` differs from
+  `<git-common-dir>`.
+- **Current branch** = `<current-branch>` (the source branch).
+- **Default branch** = `<default-branch>`; if empty (origin/HEAD isn't set),
+  fall back to whichever of `main` / `master` exists
+  (`git rev-parse --verify <name>`). If still ambiguous, ask.
+- **Dirty?** `<status-short>` is non-empty.
+- **Base** and **local commits to move** are pre-computed in
+  `<base-against-origin-head>` and `<local-commits-ahead>` - but only trust
+  those when `<default-branch>` was non-empty (they resolve against
+  `origin/HEAD`). If the default branch came from the fallback, recompute both
+  against `refs/remotes/origin/<default>` in step 3.
 
 ## 2. Already in a worktree -> just commit
 
@@ -50,10 +87,12 @@ another worktree, stash, or move anything.
   herdr task/tab id is in context - prefix it: `<task-id>-<slug>` (e.g.
   `AIE-1234-add-token-refresh`). Otherwise just `<slug>`. Never invent a task
   ID; only use one that actually exists. Keep it short.
-- **Base.** The point the source branch should return to:
-  `git merge-base HEAD refs/remotes/origin/<default>`. This is where the
-  local-only commits diverged.
-- **Local commits to move?** `git rev-list --count <base>..HEAD` > 0.
+- **Base.** The point the source branch should return to - where the local-only
+  commits diverged. Use `<base-against-origin-head>` from the pre-loaded state;
+  recompute with `git merge-base HEAD refs/remotes/origin/<default>` only if the
+  default branch came from the fallback (see step 1).
+- **Local commits to move?** `<local-commits-ahead>` > 0 (same caveat - recompute
+  with `git rev-list --count <base>..HEAD` if the default came from the fallback).
 - **Worktree location.** Reuse the parent directory of any existing linked
   worktree from `git worktree list` if the repo already keeps them somewhere.
   Otherwise default to a sibling of the checkout, OUTSIDE the working tree so it
