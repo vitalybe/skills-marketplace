@@ -39,7 +39,7 @@ nothing was applied, write "Applied fixes: none."
 When findings come from more than one reviewer (see the review roster), tag each
 finding with a **Source** field naming the reviewer id(s) that raised it. When
 several reviewers raised the same defect, list them together as corroboration
-(e.g. **Source.** generic, codex). Omit the field entirely for single-reviewer
+(e.g. **Source.** official-anthropic-review-skill, codex). Omit the field entirely for single-reviewer
 reviews where attribution adds nothing.
 
 ## Example

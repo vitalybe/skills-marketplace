@@ -71,7 +71,7 @@ Invoke `/devflow:_internal-review-aggregator` with:
 - **Plan path** — the plan file, so the `project` reviewer can check
   plan↔implementation drift.
 
-It resolves the code roster (`project` + `generic` always, plus `fallow`,
+It resolves the code roster (`project` + `official-anthropic-review-skill` always, plus `fallow`,
 `ponytail`, and `codex` when enabled and available), runs the reviewers in
 parallel, dedups across them, and returns one triaged, source-tagged findings
 list (Apply / Decision needed) plus any reviewer skip notes.

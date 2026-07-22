@@ -64,7 +64,7 @@ entry in the roster:
 - The built-in lanes (`project`, `plan`) — do this analysis yourself. `project`
   uses the developer-guidelines above (and the plan path, if given, for drift);
   `plan` uses the plan-quality rubric.
-- Sub-agent lanes (`generic`, `ponytail`, `codex`) — spawn one sub-agent each.
+- Sub-agent lanes (`official-anthropic-review-skill`, `ponytail`, `codex`) — spawn one sub-agent each.
 - `fallow` — run the CLI directly (no sub-agent) and parse its diagnostics.
 
 Wait for all lanes to return.

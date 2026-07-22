@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Reviews a GitHub pull request against its plan file, inside a worktree, using the shared review roster. Use whenever the user asks to "review PR #N", "code-review PR #N", "do a PR review on #N", "look over PR #N", or names a specific PR number with review intent. Performs the full ritual - checkout, rebase, plan lookup, review via the aggregator (project/generic/fallow/ponytail/codex), fix-and-commit for obvious findings, then a structured report. Always use this skill when a specific PR number is mentioned with review intent; don't do PR reviews ad-hoc.
+description: Reviews a GitHub pull request against its plan file, inside a worktree, using the shared review roster. Use whenever the user asks to "review PR #N", "code-review PR #N", "do a PR review on #N", "look over PR #N", or names a specific PR number with review intent. Performs the full ritual - checkout, rebase, plan lookup, review via the aggregator (project/official-anthropic-review-skill/fallow/ponytail/codex), fix-and-commit for obvious findings, then a structured report. Always use this skill when a specific PR number is mentioned with review intent; don't do PR reviews ad-hoc.
 ---
 
 # PR Review
@@ -60,8 +60,12 @@ stay with the user.
 Invoke `/devflow:_internal-review-aggregator` with:
 
 - **Artifact** — `code`.
-- **Scope** — the PR's changes: `git diff main` (after the rebase, the working
-  branch vs `main`).
+- **Scope** — the PR's changes, diffed against the merge-base of the branch and
+  `origin/main` (not `origin/main`'s tip - if it has advanced past the branch
+  point, diffing its tip pulls in unrelated commits):
+  ```bash
+  git diff "$(git merge-base origin/main HEAD)"
+  ```
 - **Plan path** — the resolved plan (enables plan↔code drift, both directions:
   more shipped than promised, less shipped).
 - **Focus areas** — anything the user passed, plus diff-stat areas of interest

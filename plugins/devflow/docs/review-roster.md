@@ -15,10 +15,10 @@ merge doesn't drown in duplicates), the **artifact** it applies to, its
 |---|---|---|---|---|
 | `project` | code | Project developer-guidelines compliance + plan↔code drift (both directions). | none (built-in) | The aggregator's own analysis against the developer-guidelines (injected by the caller) and, when a plan path is given, plan-vs-code deltas. |
 | `plan` | plan | Plan-quality rubric: completeness, correctness of interfaces/data-flows, consistency with codebase patterns, test-strategy coverage, risk/edge-cases, hidden dependencies. | none (built-in) | The aggregator's own analysis of the plan file against the rubric above. |
-| `generic` | code | Generic correctness recall - bugs a project-specific pass might miss. | none (built-in) | Sub-agent invokes the built-in `/code-review` skill at `high` effort. Does not need the plan. |
+| `official-anthropic-review-skill` | code | Generic correctness recall - bugs a project-specific pass might miss. | none (built-in) | Sub-agent invokes the built-in `/code-review` skill at `high` effort. Does not need the plan. |
 | `fallow` | code | Deterministic static analysis: dead code, duplication, complexity, architecture drift. | `node`/`npx`; **TS/JS files in the diff** | Run `npx fallow dead-code`, `npx fallow dupes`, `npx fallow health` scoped to the changed TS/JS files; parse the diagnostics into findings. Not an LLM lane - run the CLI directly, no sub-agent. |
-| `ponytail` | code, plan | Simplification / anti-over-engineering ("does this need to exist? already in the codebase? one line?"). | ponytail plugin installed | Sub-agent invokes `/ponytail-review` scoped to the diff (code) or the plan file (plan). Mandate is simplification only - do not re-report generic bugs. |
-| `codex` | code, plan | Cross-model (GPT-family) correctness second opinion - breaks Claude's shared blind spots. | codex CLI + `codex login` (no MCP needed) | Sub-agent runs `codex exec` headless, pinned to `-m gpt-5.6-sol`. Code: `codex exec review --base main -m gpt-5.6-sol` (the repo's default branch). Plan: `codex exec -m gpt-5.6-sol "<plan-review prompt pointing at the plan file>"`. Normalize its output into findings. |
+| `ponytail` | code, plan | Simplification / anti-over-engineering ("does this need to exist? already in the codebase? one line?"). | ponytail plugin installed | Sub-agent invokes `/ponytail-review` scoped to the diff (code) or the plan file (plan). Mandate is simplification only - do not re-report ordinary bugs. |
+| `codex` | code, plan | Cross-model (GPT-family) correctness second opinion - breaks Claude's shared blind spots. | codex CLI + `codex login` (no MCP needed) | Sub-agent runs `codex exec` headless, pinned to `-m gpt-5.6-sol`. Code: `codex exec review --base main -m gpt-5.6-sol` (the repo's default branch) for correctness; **and when a plan path is given, also run** `codex exec -m gpt-5.6-sol "<prompt: compare the diff (git diff main) against the plan at <plan_path>; report implementation↔plan drift both directions - shipped-but-unplanned and planned-but-unshipped>"`, merging both into codex findings. Plan artifact: `codex exec -m gpt-5.6-sol "<plan-review prompt pointing at the plan file>"`. Normalize its output into findings. |
 
 ## Resolving the roster
 
@@ -33,14 +33,14 @@ and the injected **doctor** output, build the run list:
 3. **Subtract unmet dependencies.** Remove any reviewer whose dependency the
    doctor output reports as absent - `fallow` (no `node`, or no TS/JS files in
    the diff), `ponytail` (plugin not installed), `codex` (CLI/MCP/auth missing).
-   The built-in lanes (`project`, `plan`, `generic`) have no dependency and are
+   The built-in lanes (`project`, `plan`, `official-anthropic-review-skill`) have no dependency and are
    never dropped here.
 4. **Record every drop.** For each reviewer removed in step 2 or 3, keep a
    one-line note (`skipped <id> - excluded` / `skipped <id> - <dep> not found`)
    so the aggregator can surface it. A reviewer being unavailable is **never** a
    hard error - the review proceeds with whoever is left.
 
-The always-on baseline: `code` reviews always run at least `project` + `generic`;
+The always-on baseline: `code` reviews always run at least `project` + `official-anthropic-review-skill`;
 `plan` reviews always run at least `plan`. The other lanes layer on when enabled
 and available.
 
@@ -52,7 +52,7 @@ that raised it.
 
 - **Dedup across sources.** Same defect at the same location from more than one
   reviewer → keep one item, merge the strongest description, and set its
-  `source` to all that raised it (e.g. `source: generic, codex`) as
+  `source` to all that raised it (e.g. `source: official-anthropic-review-skill, codex`) as
   corroboration.
 - **Respect mandates.** If a reviewer strays outside its lane (e.g. `ponytail`
   reports a plain bug), keep the finding but attribute it accurately; don't

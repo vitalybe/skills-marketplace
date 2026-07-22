@@ -12,7 +12,7 @@ report.
 
 Invoke `/devflow:_internal-review-aggregator` with **Artifact** = `code`, **Scope**
 = `git diff origin/main`, plus any focus areas the user gave (and a plan path if
-one is in play). It resolves the code roster (`project` + `generic` always, plus
+one is in play). It resolves the code roster (`project` + `official-anthropic-review-skill` always, plus
 `fallow`, `ponytail`, `codex` when enabled and available), runs them in parallel,
 and returns one triaged, source-tagged findings list — **Apply** vs **Decision
 needed** — with any reviewer skip notes.

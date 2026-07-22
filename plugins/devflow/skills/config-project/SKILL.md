@@ -40,7 +40,7 @@ reviewers run.
 
 Controls which reviewers the review roster drops (see `docs/review-roster.md`).
 It's a single list applied to whichever phase a reviewer participates in. Valid
-ids: `project`, `plan`, `generic`, `fallow`, `ponytail`, `codex`. Default (unset)
+ids: `project`, `plan`, `official-anthropic-review-skill`, `fallow`, `ponytail`, `codex`. Default (unset)
 = exclude nothing; reviewers whose dependencies are missing are skipped
 automatically regardless.
 
