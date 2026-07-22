@@ -35,6 +35,30 @@ else
   missing=1
 fi
 
+# Review roster (optional). These gate individual reviewers in the review
+# roster - a missing one is skipped, never fatal, so they do NOT touch $missing.
+say ""
+say "review roster (optional - a missing tool just skips that reviewer):"
+
+if command -v npx >/dev/null 2>&1; then
+  say "  ok    fallow (via npx) - runs on TS/JS diffs only"
+else
+  say "  --    fallow needs npx (Node) - 'fallow' reviewer skipped"
+fi
+
+if [ -n "$(find "${HOME}/.claude/plugins" -maxdepth 5 -iname '*ponytail*' 2>/dev/null)" ]; then
+  say "  ok    ponytail plugin"
+else
+  say "  --    ponytail plugin not detected - 'ponytail' reviewer skipped (install: /plugin install ponytail@ponytail)"
+fi
+
+if command -v codex >/dev/null 2>&1; then
+  say "  ok    codex CLI (ensure its MCP server + provider auth are configured)"
+else
+  say "  --    codex CLI not found - 'codex' reviewer skipped"
+fi
+
+say ""
 if [ "$missing" -eq 0 ]; then
   say "All dependencies satisfied."
 else

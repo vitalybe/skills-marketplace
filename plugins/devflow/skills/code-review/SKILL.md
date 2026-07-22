@@ -10,9 +10,12 @@ report.
 
 ## Phase 1: Review
 
-Invoke `/devflow:_internal-code-review`. Pass any focus areas the user gave (and a
-plan path if one is in play). It returns triaged findings — **Apply** vs
-**Decision needed**.
+Invoke `/devflow:_internal-review-aggregator` with **Artifact** = `code`, **Scope**
+= `git diff origin/main`, plus any focus areas the user gave (and a plan path if
+one is in play). It resolves the code roster (`project` + `generic` always, plus
+`fallow`, `ponytail`, `codex` when enabled and available), runs them in parallel,
+and returns one triaged, source-tagged findings list — **Apply** vs **Decision
+needed** — with any reviewer skip notes.
 
 While it runs, skim `git diff origin/main --stat` yourself for the summary.
 
@@ -39,4 +42,5 @@ Present using the shared report format:
 
 - **Summary** — 2-4 sentences: what changed, its shape, and a one-line recommendation.
 - **Applied fixes** — the brief one-line-each mention (per the format), before the breakdown.
-- **Findings** — the **Decision needed** items, grouped by severity.
+- **Findings** — the **Decision needed** items, grouped by severity, each with its `source` tag(s).
+- **Reviewers skipped** — one line for any roster reviewer that didn't run (excluded or dependency missing), if any.

@@ -50,38 +50,31 @@ authoritative. Don't improvise structure here.
 
 Once the initial draft is written, save and commit the plan file.
 
-## Step: Sub-agent Review
+## Step: Review
 
-Launch a general-purpose sub-agent (model=opus) with:
+Invoke `/devflow:_internal-review-aggregator` with:
 
-- The plan file path (so it can read `$path` directly)
-- Task requirements/goals
-- Relevant context (parent task, referenced docs)
+- **Artifact** — `plan`.
+- **Scope** — the plan file path.
+- **Context** — task requirements/goals and relevant context (parent task,
+  referenced docs) so the reviewers can judge completeness.
 
-The agent should evaluate:
+It resolves the plan roster (the built-in `plan` reviewer, plus `ponytail` and
+`codex` when enabled and available), runs them in parallel, and returns one
+triaged, source-tagged findings list (Apply / Decision needed) plus any
+reviewer skip notes.
 
-- **Completeness**: All requirements covered?
-- **Correctness**: Interfaces and data flows make sense?
-- **Consistency**: Aligns with codebase patterns?
-- **Test coverage**: Testing strategy present? Every concern group carries a `Tests:` sub-bullet? Rollup matches the inline cases?
-- **Risk areas**: Edge cases, race conditions, failure modes?
-- **Over-engineering**: Anything unnecessary?
-- **Dependencies**: Hidden ordering issues?
+For each **Apply** item, edit the plan file. Don't apply edits you don't
+understand - leave those as Decision-needed and surface them. Save and commit
+when all "Apply" edits are in (single commit is fine — the plan is one file).
 
-Triage each finding into one of:
-
-- **Apply** — clear gap or correction with an unambiguous edit to the plan.
-- **Decision needed** — false positive, out of scope, stylistic, or a judgment call the user should make.
-
-Don't apply edits you don't understand. When in doubt, leave it for the user to decide and surface it.
-
-For each "Apply" item, edit the plan file. Save and commit when all "Apply" edits are in (single commit is fine — the plan is one file).
-
-Then `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Sub-agent plan review completed"`.
+Then `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Plan review completed"`.
 
 ### Report to the user
 
-Render the findings as the Apply / Decision needed triage from the report format:
+Render the aggregator's findings using the shared report format - Apply items as
+the brief one-line-each mention, then the **Decision needed** items as the
+severity breakdown. Mention any reviewer skip notes.
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`

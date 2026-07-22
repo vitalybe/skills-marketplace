@@ -32,6 +32,18 @@ no other backend is supported.
 - `true` — "Team — open a pull request, let someone review/merge on GitHub"
 - `false` — "Solo — merge directly to main from the command line"
 
+### `[review] exclude` (array of strings) — optional
+
+**Only prompt for this if the user explicitly asks to configure reviewers.** Do
+not ask for it on a normal missing-key pass - leaving it unset means all roster
+reviewers run.
+
+Controls which reviewers the review roster drops (see `docs/review-roster.md`).
+It's a single list applied to whichever phase a reviewer participates in. Valid
+ids: `project`, `plan`, `generic`, `fallow`, `ponytail`, `codex`. Default (unset)
+= exclude nothing; reviewers whose dependencies are missing are skipped
+automatically regardless.
+
 ### (future keys go here — add new sections as needed)
 
 ## Step: Write the Config
@@ -44,6 +56,9 @@ Write the final file using the Write tool (not heredoc). Format:
 task-system = "jira"
 use-pull-requests = true
 # other keys...
+
+[review]
+exclude = []   # e.g. ["codex", "fallow"] to turn those reviewers off
 ```
 
 ## Wrap Up

@@ -34,6 +34,14 @@ one line each — under an **Applied fixes** heading *before* the breakdown, the
 give the full severity breakdown for the **Decision needed** items only. If
 nothing was applied, write "Applied fixes: none."
 
+## Source attribution
+
+When findings come from more than one reviewer (see the review roster), tag each
+finding with a **Source** field naming the reviewer id(s) that raised it. When
+several reviewers raised the same defect, list them together as corroboration
+(e.g. **Source.** generic, codex). Omit the field entirely for single-reviewer
+reviews where attribution adds nothing.
+
 ## Example
 
 **Applied fixes**
@@ -46,6 +54,7 @@ nothing was applied, write "Applied fixes: none."
 
 **Unindexed user lookup**
 - **Location.** [src/db.ts:88](src/db.ts:88)
+- **Source.** project, codex
 - **Issue.** The query runs without an index on `user_id`.
 - **Suggested change.** Add an index in the next migration.
 - **Why not applied.** Out of scope for this change; needs a migration review.
