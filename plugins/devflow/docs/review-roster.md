@@ -18,7 +18,7 @@ merge doesn't drown in duplicates), the **artifact** it applies to, its
 | `generic` | code | Generic correctness recall - bugs a project-specific pass might miss. | none (built-in) | Sub-agent invokes the built-in `/code-review` skill at `high` effort. Does not need the plan. |
 | `fallow` | code | Deterministic static analysis: dead code, duplication, complexity, architecture drift. | `node`/`npx`; **TS/JS files in the diff** | Run `npx fallow dead-code`, `npx fallow dupes`, `npx fallow health` scoped to the changed TS/JS files; parse the diagnostics into findings. Not an LLM lane - run the CLI directly, no sub-agent. |
 | `ponytail` | code, plan | Simplification / anti-over-engineering ("does this need to exist? already in the codebase? one line?"). | ponytail plugin installed | Sub-agent invokes `/ponytail-review` scoped to the diff (code) or the plan file (plan). Mandate is simplification only - do not re-report generic bugs. |
-| `codex` | code, plan | Cross-model (GPT-family) correctness second opinion - breaks Claude's shared blind spots. | codex CLI + Codex MCP configured + provider auth | Sub-agent sends the diff (code) or plan file (plan) to the Codex MCP review tool with a correctness-review prompt; normalize its output into findings. |
+| `codex` | code, plan | Cross-model (GPT-family) correctness second opinion - breaks Claude's shared blind spots. | codex CLI + `codex login` (no MCP needed) | Sub-agent runs `codex exec` headless, pinned to `-m gpt-5.6-sol`. Code: `codex exec review --base main -m gpt-5.6-sol` (the repo's default branch). Plan: `codex exec -m gpt-5.6-sol "<plan-review prompt pointing at the plan file>"`. Normalize its output into findings. |
 
 ## Resolving the roster
 

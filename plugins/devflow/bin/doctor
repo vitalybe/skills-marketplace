@@ -53,9 +53,9 @@ else
 fi
 
 if command -v codex >/dev/null 2>&1; then
-  say "  ok    codex CLI (ensure its MCP server + provider auth are configured)"
+  say "  ok    codex CLI (run 'codex login' to authenticate)"
 else
-  say "  --    codex CLI not found - 'codex' reviewer skipped"
+  say "  --    codex CLI not found - 'codex' reviewer skipped (install: pnpm add -g @openai/codex, then codex login)"
 fi
 
 say ""
