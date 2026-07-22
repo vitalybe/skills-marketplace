@@ -13,9 +13,11 @@ Invoked as `/devflow:<name>`.
 | `_internal-step-plan` | Phase 2 - draft and review the implementation plan. |
 | `_internal-step-code` | Phase 3 - implement, test, code review. |
 | `_internal-step-close` | Phase 4 - validate and merge/PR. |
+| `code-review` | Standalone review of the working diff vs main (ad-hoc, outside the flow). |
+| `pr-review` | Review a GitHub PR (`review PR #N`) against its plan, inside a worktree. |
 | `config-project` | Configure per-project settings (`project-config.toml`). |
 | `docs-update` | Create or update project documentation. |
-| `_internal-code-review` | Internal review engine used by the code phase. |
+| `_internal-review-aggregator` | Shared review engine - convenes the reviewer roster, fans out in parallel, dedups/triages. Used by the plan/code phases and the code-review/pr-review skills. |
 
 Skills prefixed with `_internal-` are driven by the orchestrator and its phases, not meant for direct invocation.
 
@@ -23,8 +25,9 @@ Skills prefixed with `_internal-` are driven by the orchestrator and its phases,
 
 ```
 devflow/
-├── skills/    # the 8 skills above
+├── skills/    # the skills above
 ├── docs/      # shared reference docs injected into the skills at runtime
+│              #   (review-roster.md defines the reviewers; review-report-format.md the output)
 └── bin/       # bundled tooling, referenced via ${CLAUDE_PLUGIN_ROOT}/bin
     ├── tasks                       # JIRA task dispatcher (Python, run via uv)
     ├── mdexec                      # markdown command-injector (Node)
