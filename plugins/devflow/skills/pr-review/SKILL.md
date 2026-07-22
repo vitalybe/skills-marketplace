@@ -116,13 +116,10 @@ Present these sections, in order, using the shared report format:
 - **Applied fixes** — the brief one-line-each mention (per the format), before
   the breakdown.
 - **Findings & deltas** — ONE severity-grouped list of the **Decision needed**
-  items, combining code findings *and* plan↔code deltas. Omit empty tiers.
-  Prefix each item's title with a short id `Q<n>` (e.g. `Q1 - Duplicated "All
-  employees" heading`), numbered sequentially across the whole list — starting
-  at Q1 in the top tier and continuing unbroken through the lower tiers — so the
-  user can reference any item by its id. Tag each finding with its `source`(s),
-  and each plan delta inline with a `(plan delta)` suffix on its title so it's
-  distinct from a code finding in a shared tier. Code findings use the format's
+  items, combining code findings *and* plan↔code deltas. Omit empty tiers. Tag
+  each finding with its `source`(s), and each plan delta inline with a `(plan
+  delta)` suffix on its title so it's distinct from a code finding in a shared
+  tier. Code findings use the format's
   standard fields; plan deltas use **Plan said**, **Code shipped**,
   **Implication**, **Suggested fix** (or "Fixed inline" / "Skipped"), and cover
   both directions. When there's no plan, just list code findings. After the

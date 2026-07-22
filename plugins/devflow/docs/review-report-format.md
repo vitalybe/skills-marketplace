@@ -6,6 +6,12 @@ line, then render its details as bold-labeled fields beneath it — never a
 markdown table. The invoking skill names the fields; linkify file paths like
 `[file.ts:123](path/to/file.ts:123)`.
 
+Prefix each finding's title with a short id `Q<n>` (`Q1`, `Q2`, …), numbered
+sequentially across the whole findings list — starting at `Q1` in the top
+severity tier and continuing unbroken through the lower tiers — so the user can
+reference any item by its id (e.g. `Q1 - Unindexed user lookup`). The Q-ids
+cover the findings/Decision-needed list only, not the Applied-fixes one-liners.
+
 ## Severity tiers
 
 - 🔴 **Critical** — blocks the artifact from working.
@@ -52,7 +58,7 @@ reviews where attribution adds nothing.
 
 ### 🟡 Medium
 
-**Unindexed user lookup**
+**Q1 - Unindexed user lookup**
 - **Location.** [src/db.ts:88](src/db.ts:88)
 - **Source.** project, codex
 - **Issue.** The query runs without an index on `user_id`.
@@ -60,7 +66,7 @@ reviews where attribution adds nothing.
 - **Why not applied.** Out of scope for this change; needs a migration review.
 - **Implication if not addressed.** Slower lookups as the table grows.
 
-**Silent JSON parse failure**
+**Q2 - Silent JSON parse failure**
 - **Location.** [src/api.ts:120](src/api.ts:120)
 - **Issue.** A malformed payload is swallowed and returns an empty result.
 - **Suggested change.** Surface a 400 with the parse error.
