@@ -60,27 +60,25 @@ Run `/devflow:docs-update` with the list of changes to guide the documentation u
 
 ## Step: Code Review
 
-Run two reviewers in parallel, then triage.
+Run the review roster via the aggregator, then apply and report.
 
-### 1. Launch both reviewers in parallel
+### 1. Run the review
 
-In a single message, spawn two sub-agents:
+Invoke `/devflow:_internal-review-aggregator` with:
 
-- **Sub-agent A — project review.** Ask it to invoke the `/devflow:_internal-code-review` skill. Pass the plan file path so it can check plan↔implementation drift. It returns triaged findings (Apply / Decision needed).
-- **Sub-agent B — generic review.** Ask it to invoke the built-in `/code-review` skill at `high` effort (the recall-biased correctness pass). It doesn't need the plan; its job is finding bugs the project skill might miss.
+- **Artifact** — `code`.
+- **Scope** — `git diff origin/main`.
+- **Plan path** — the plan file, so the `project` reviewer can check
+  plan↔implementation drift.
 
-Wait for both to complete.
-
-### 2. Aggregate and triage
-
-Merge the two findings lists. Dedupe near-duplicates (same defect at the same location → keep one, merging the strongest description). For each unique finding decide one of:
-
-- **Apply** — clear bug or correctness issue with an unambiguous fix.
-- **Decision needed** — false positive, out of scope, stylistic, or a judgment call the user should make.
+It resolves the code roster (`project` + `generic` always, plus `fallow`,
+`ponytail`, and `codex` when enabled and available), runs the reviewers in
+parallel, dedups across them, and returns one triaged, source-tagged findings
+list (Apply / Decision needed) plus any reviewer skip notes.
 
 Don't fix things you don't understand. When in doubt, leave it for the user to decide and surface it.
 
-### 3. Apply fixes, one commit per fix
+### 2. Apply fixes, one commit per fix
 
 For each **Apply** item:
 
@@ -90,16 +88,17 @@ For each **Apply** item:
 
 Do NOT batch multiple fixes into one commit — each fix should be reviewable and revertable in isolation.
 
-### 4. Report to the user
+### 3. Report to the user
 
 Report using the shared format — applied fixes as the brief one-line-each
-mention, then the **Decision needed** findings as the severity breakdown:
+mention, then the **Decision needed** findings as the severity breakdown (with
+`source` tags), and mention any reviewer skip notes:
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
 </report-format>
 
-### 5. Close the review
+### 4. Close the review
 
 - `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Code review completed"`
 - If findings changed the plan, update the plan file and commit it (separate commit).
