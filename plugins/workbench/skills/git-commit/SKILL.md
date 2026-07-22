@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Examine uncommitted changes and split them into logical, well-scoped git commits. Handles untracked files by either staging them or adding them to .gitignore. Runs on haiku in a forked subagent; reports back what it did and any open questions.
+description: Examine uncommitted changes and split them into logical, well-scoped git commits. Handles untracked files by either staging them or adding them to .gitignore. If the repo is a submodule, also records the pointer bump in the parent repo. Runs on haiku in a forked subagent; reports back what it did, reminds the user to push, and flags any open questions.
 context: fork
 agent: general-purpose
 model: haiku
@@ -10,22 +10,37 @@ model: haiku
 
 Split the current working-tree changes into a series of small, logical commits. Each commit should represent one coherent change (a single feature, fix, refactor, or doc update) so the history is easy to read and revert.
 
+## Pre-loaded working-tree state
+
+These blocks are captured at load time, in the directory this skill was invoked from - so the survey is already done before your first turn. Read them first; you usually do not need to re-run these commands. Re-run one only if its block is empty or errored, or to get fresh state after you stage or commit.
+
+<git-status>
+!`git status 2>&1`
+</git-status>
+
+<git-diff-unstaged>
+!`git diff 2>&1`
+</git-diff-unstaged>
+
+<git-diff-staged>
+!`git diff --staged 2>&1`
+</git-diff-staged>
+
+<recent-log>
+!`git log -n 10 --oneline 2>&1`
+</recent-log>
+
+<superproject-path>
+!`git rev-parse --show-superproject-working-tree 2>/dev/null`
+</superproject-path>
+
+If `<superproject-path>` is non-empty, this repo is a **git submodule** inside a parent repo at that path - handle it in step 5.
+
 ## Workflow
 
-### 1. Survey the state
+### 1. Read the state
 
-Run these in parallel:
-
-```bash
-git status
-git diff
-git diff --staged
-git log -n 10 --oneline
-```
-
-Use `git log` only to match the repo's commit-message style (tense, prefixes like `fix:` / `feat:`, capitalization). Do not copy unrelated content.
-
-Never use `git status -uall` (memory issues on large repos).
+Work from the pre-loaded blocks above. Match the repo's commit-message style (tense, prefixes like `fix:` / `feat:`, capitalization) from `<recent-log>`; do not copy unrelated content. Never run `git status -uall` (memory issues on large repos).
 
 ### 2. Handle untracked files
 
@@ -72,13 +87,46 @@ Commit message format:
   Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
   ```
 
-### 5. Report back to the parent
+### 5. If this repo is a submodule, commit the parent pointer
+
+Only when `<superproject-path>` (from the pre-loaded state) is non-empty. Once you commit inside a submodule, its recorded commit pointer moves, so the parent repo now shows the submodule as modified. Record just that pointer bump in the parent so the two stay in sync:
+
+1. Let `SUPER` = the `<superproject-path>` value and `SUB` = `git rev-parse --show-toplevel` (this submodule's path).
+2. Confirm the parent sees the submodule pointer change:
+
+   ```bash
+   git -C "<SUPER>" status --short -- "<SUB>"
+   ```
+
+3. Stage only the submodule pointer (explicit path - never `git add -A`):
+
+   ```bash
+   git -C "<SUPER>" add "<SUB>"
+   ```
+
+4. Write the message to `/tmp/claude-<epoch-ms>.md`, then commit **only that path** in the parent, matching the parent's own style (`git -C "<SUPER>" log --oneline -n 10`):
+
+   ```bash
+   git -C "<SUPER>" commit -F /tmp/claude-<epoch-ms>.md -- "<SUB>"
+   ```
+
+   A subject like `chore: bump <submodule-name> pointer` with a one-line body naming what changed is usually right. Keep the same `Co-Authored-By` trailer.
+
+Commit **only** the submodule pointer - never other changes in the parent. If the parent has unrelated staged or dirty changes, leave them untouched and note it in the report. The `-- "<SUB>"` pathspec on the commit guarantees only the pointer is recorded even if the parent index holds other staged files. If the parent is itself nested inside a further superproject, do not recurse - just note it in the report.
+
+### 6. Report back to the parent
 
 You are running in a forked subagent with no conversation access. The main model cannot see your steps - it only sees your final message. Structure the report as:
 
 **Done:**
 - Number of commits created
 - Output of `git log --oneline -n <N>` for the new commits
+- If a submodule: that you also committed the pointer bump in the parent at `<SUPER>`, with that commit's one-line log
+
+**Push reminder (this skill never pushes):**
+- State plainly that nothing was pushed, and give the exact next step:
+  - Normal repo: `git push`
+  - Submodule: push the submodule first, then the parent - `git push` from `<SUB>`, then `git -C "<SUPER>" push`
 
 **Left unstaged (if any):**
 - File path + reason (e.g. "could be scratchpad, could be doc - needs user decision")
