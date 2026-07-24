@@ -4,6 +4,15 @@ Each task gets one living plan file under `_plans/`, committed on its
 feature branch and merged with the PR. The issue tracker holds status +
 phase + workflow metadata; the file holds the prose.
 
+> **`_plans/` must NOT be gitignored.** The whole model here is a
+> versioned, diffable plan that ships with the PR and stays on `main` as a
+> permanent record - a `.gitignore` entry for `_plans/` defeats that. If a
+> "commit the plan file" step fails with *"paths are ignored by one of your
+> .gitignore files"*, treat it as a **repo misconfiguration**: surface it to
+> the user and offer to remove the `_plans/` line from `.gitignore` - do not
+> paper over it with `git add -f` or silently downgrade the plan to a
+> throwaway local file.
+
 ## Location & naming
 
 ```

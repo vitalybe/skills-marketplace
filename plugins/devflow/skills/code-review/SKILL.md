@@ -11,13 +11,15 @@ report.
 ## Phase 1: Review
 
 Invoke `/devflow:_internal-review-aggregator` with **Artifact** = `code`, **Scope**
-= `git diff origin/main`, plus any focus areas the user gave (and a plan path if
+= `git diff "$(git merge-base origin/main HEAD)" HEAD` (the merge-base form, so a
+`main` that has advanced past this branch's fork point doesn't pull sibling
+commits into the diff), plus any focus areas the user gave (and a plan path if
 one is in play). It resolves the code roster (`project` + `official-anthropic-review-skill` always, plus
 `fallow`, `ponytail`, `codex` when enabled and available), runs them in parallel,
 and returns one triaged, source-tagged findings list — **Apply** vs **Decision
 needed** — with any reviewer skip notes.
 
-While it runs, skim `git diff origin/main --stat` yourself for the summary.
+While it runs, skim `git diff "$(git merge-base origin/main HEAD)" --stat` yourself for the summary.
 
 ## Phase 2: Apply obvious fixes
 

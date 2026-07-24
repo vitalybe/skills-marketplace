@@ -66,9 +66,19 @@ if (!resolved) {
 const content = fs.readFileSync(resolved, 'utf-8');
 const cwd = process.cwd();
 
+// The embedded `!`cmd`` directives commonly reference ${CLAUDE_PLUGIN_ROOT}
+// (e.g. ${CLAUDE_PLUGIN_ROOT}/bin/tasks). The harness only expands that var in
+// the OUTER skill directive that invokes mdexec - it is NOT exported into this
+// process's environment, so without help the inner shells would expand it to ""
+// and run `/bin/tasks` (→ "No such file or directory", silently breaking tracker
+// calls in task mode). mdexec always lives at <plugin-root>/bin/mdexec, so derive
+// the root from our own location and pass it down (respecting an explicit env).
+const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..');
+const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot };
+
 const result = content.replace(/!`([^`\n]+)`/g, (_, cmd) => {
   try {
-    return execSync(cmd, { encoding: 'utf-8', cwd, stdio: ['pipe', 'pipe', 'inherit'] }).replace(/\n$/, '');
+    return execSync(cmd, { encoding: 'utf-8', cwd, env: childEnv, stdio: ['pipe', 'pipe', 'inherit'] }).replace(/\n$/, '');
   } catch (e) {
     const code = e.status || 1;
     console.error(`mdexec: command failed (exit ${code}): ${cmd}`);

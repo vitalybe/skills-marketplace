@@ -39,6 +39,11 @@ with the user, then commit the plan file.
 - Collect the test list from the plan: the `## Tests` rollup, following
   each line back to the `Tests:` sub-bullet in its concern group for
   the case-level detail.
+- **Fresh worktree? Install deps first.** A per-task git worktree starts
+  with no `node_modules`, so the first `pnpm test`/`pnpm build` fails with
+  `vitest: command not found` / `tsc: command not found`. That's a missing
+  install, not a test failure - run `[ -d node_modules ] || pnpm install`
+  (or the project's `npm ci` / `pnpm install`) before the first run.
 - Run them; fix any failures.
 - Add tests discovered during implementation - record each in its
   concern group's `Tests:` sub-bullet and in the rollup, then commit
@@ -67,7 +72,13 @@ Run the review roster via the aggregator, then apply and report.
 Invoke `/devflow:_internal-review-aggregator` with:
 
 - **Artifact** — `code`.
-- **Scope** — `git diff origin/main`.
+- **Scope** — the branch's own changes since it forked, via the
+  merge-base: `git diff "$(git merge-base origin/main HEAD)" HEAD`. Do
+  **not** use plain `git diff origin/main` / `git diff main` here - when
+  local `main` has advanced past this branch's fork point (e.g. sibling
+  tasks merged locally while this one ran in a worktree), a two-dot diff
+  reports their files as phantom additions/deletions and the review
+  targets the wrong file set.
 - **Plan path** — the plan file, so the `project` reviewer can check
   plan↔implementation drift.
 
@@ -84,7 +95,7 @@ For each **Apply** item:
 
 1. Make the change.
 2. Re-run any cheap local validators relevant to the change (e.g. `docker compose config -q`, `pnpm test --filter <pkg>`, `tsc --noEmit`) — not the full smoke suite, just what the touched file warrants.
-3. `git commit` that fix alone. Commit message: short imperative summary referencing the finding (e.g. `fix(server): drop trailing slash on grafana proxy_pass`). Include the `Co-Authored-By` trailer per the global commit convention.
+3. `git commit` that fix alone. Commit message: short imperative summary referencing the finding (e.g. `fix(server): drop trailing slash on grafana proxy_pass`). Include the `Co-Authored-By` trailer per the global commit convention. For any multi-line message, write it to a temp file first (`/tmp/claude-<epoch-millis>.md`, a unique name to avoid colliding with a stale file) and `git commit -F` it - don't pass it via heredoc/`printf`/`echo`.
 
 Do NOT batch multiple fixes into one commit — each fix should be reviewable and revertable in isolation.
 
@@ -110,7 +121,7 @@ mention, then the **Decision needed** findings as the severity breakdown (with
 Show the user:
 
 ```bash
-git diff main --stat
+git diff "$(git merge-base origin/main HEAD)" --stat
 ```
 
 Present to the user:

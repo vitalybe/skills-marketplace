@@ -12,7 +12,10 @@ fixes and renders the report; this skill only produces the findings.
 ## Inputs (from the caller)
 
 - **Artifact** — `plan` or `code`. Selects which reviewers apply. Required.
-- **Scope** — what to review. For `code`, a diff (default `git diff origin/main`);
+- **Scope** — what to review. For `code`, a diff (default the merge-base form
+  `git diff "$(git merge-base origin/main HEAD)" HEAD`, so a `main` that advanced
+  past the branch's fork point doesn't fold sibling commits into the diff - plain
+  `git diff origin/main` is wrong when local `main` is ahead of the branch base);
   for `plan`, the plan file path.
 - **Plan path** (optional, `code` only) — enables the `project` reviewer's
   plan↔code drift check (both directions: more shipped than planned, less).
@@ -49,7 +52,7 @@ reviewer dropped by an exclude or a missing dependency.
 
 ```bash
 git fetch
-git diff origin/main --stat   # code artifact
+git diff "$(git merge-base origin/main HEAD)" --stat   # code artifact (merge-base form)
 ```
 
 For `code`, read each changed file in full - don't review the diff in isolation.

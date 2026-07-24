@@ -17,6 +17,14 @@ If any dependency is reported `MISS`, stop and tell the user what to
 install (using the hint shown) before starting the flow - the phases
 call these tools and will fail without them.
 
+**Exception - the task-tracker deps (`jira` / JIRA token) are only
+blocking in task mode.** If this run is task-less (no tracker key in the
+branch/worktree name and the user didn't name a Jira issue - see
+task-mode detection in the common instructions below), a `MISS` on
+jira/JIRA-token is expected and harmless: those tools are never called.
+Don't stop or ask the user to install them; proceed. Only a `MISS` on a
+dep the flow actually uses in this mode is blocking.
+
 ## General
 
 <common-instructions>
