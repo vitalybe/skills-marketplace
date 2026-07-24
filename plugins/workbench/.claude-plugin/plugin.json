@@ -1,7 +1,7 @@
 {
   "name": "workbench",
-  "description": "Personal grab-bag of everyday work and home skills: git commits and local merges, varlock env schemas, logging refactors, JIRA and Obsidian tasks, the personal wiki, meeting scheduling, browser-automation scripting, authoring skills into this marketplace, improving skills from a session transcript, and herdr multi-agent orchestration (tracked tabs, parallel subagents, live status doc, pane watching).",
-  "version": "0.7.1",
+  "description": "Personal grab-bag of everyday work and home skills: git commits and local merges, varlock env schemas, logging refactors, JIRA and Obsidian tasks, the personal wiki, meeting scheduling, browser-automation scripting, authoring skills into this marketplace, improving skills from a session transcript, herdr multi-agent orchestration (tracked tabs, parallel subagents, live status doc, pane watching), and local system diagnostics (high CPU/memory usage and Docker container load).",
+  "version": "0.8.0",
   "author": {
     "name": "Vitaly Belman",
     "email": "vbelman@drivenets.com"

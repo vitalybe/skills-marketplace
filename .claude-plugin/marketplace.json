@@ -13,14 +13,9 @@
       "description": "Structured development task workflow: requirements to plan to code to close, with a shared multi-reviewer roster and JIRA integration."
     },
     {
-      "name": "system-tools",
-      "source": "./plugins/system-tools",
-      "description": "Diagnostics for local machine health: investigating high CPU/memory usage, Docker container load, and related system issues."
-    },
-    {
       "name": "workbench",
       "source": "./plugins/workbench",
-      "description": "Everyday work and home skills: git commits and local merges, varlock env schemas, logging refactors, JIRA and Obsidian tasks, personal wiki, meeting scheduling, browser-automation scripting, authoring skills into this marketplace, improving skills from a session, and herdr multi-agent orchestration."
+      "description": "Everyday work and home skills: git commits and local merges, varlock env schemas, logging refactors, JIRA and Obsidian tasks, personal wiki, meeting scheduling, browser-automation scripting, authoring skills into this marketplace, improving skills from a session, herdr multi-agent orchestration, and local system diagnostics (high CPU/memory and Docker container load)."
     }
   ]
 }

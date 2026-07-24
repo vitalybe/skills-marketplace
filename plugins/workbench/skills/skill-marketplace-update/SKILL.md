@@ -45,7 +45,7 @@ matches skills in more than one plugin, ask which one. Its directory name and
 
 **Creating a new skill.** Route it by this rule, in order:
 
-1. The user explicitly names a plugin ("add it to devflow", "in system-tools")
+1. The user explicitly names a plugin ("add it to devflow", "in workbench")
    -> that plugin.
 2. Otherwise -> **workbench** (the default home for everyday skills).
 
