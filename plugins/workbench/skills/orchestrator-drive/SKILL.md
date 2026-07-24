@@ -49,7 +49,10 @@ spawns unless they say so.
 2. **Read the pane right before acting.** `herdr pane read <pane> --source recent`.
    Confirm it is actually parked at a gate and read the exact question. A tab in
    auto mode may have cleared the gate already - if it is working again, do not
-   send anything; just update the doc.
+   send anything; just update the doc. To check the raw status in one word, use
+   `${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh status <pane>`
+   (prints `idle`/`working`/`blocked`/`missing`) rather than hand-parsing
+   `herdr pane get ... | python3`.
 
 3. **Answer the gate.** Approve the plan / answer the requirement so the task
    advances (typically into the Code phase). Send input through task-herdr's I/O
@@ -61,7 +64,11 @@ spawns unless they say so.
    ```
 
    (or read the pane and send the exact keystroke). Write multiline answers to a
-   temp file and pass `--file`.
+   temp file and pass `--file`. For a numbered-option picker (an `AskUserQuestion`
+   gate), answer through the same helper - `herdr-io.sh send <pane> --text "1"
+   --force` types the choice and submits it atomically. Prefer this over raw
+   `herdr pane send-text` + a separate `send-keys Enter`: the two-call form races
+   the submit and can leave the choice typed but unsent.
 
 4. **Judgment calls: follow the agent's own lean.** When a gate asks you to pick
    between reasonable options (a token name, a small UX detail), go with the

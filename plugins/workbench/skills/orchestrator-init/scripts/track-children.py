@@ -15,9 +15,13 @@ It does NOT loop forever inside the orchestrator. One invocation:
      settled once its status has held for one debounce interval; a child whose
      episode exceeds --max-debounce (default 60) settles by timeout. A child
      that reverts to its baseline status is treated as a blip and dropped.
-  4. When every differing child has settled, write the change report to the
-     state dir, print it to stdout, fold the new statuses into the baseline, and
-     exit 0. If every difference turned out to be a blip, resume the steady phase.
+  4. When every differing child has settled, fold the new statuses into the
+     baseline, then filter the report to *actionable* changes - a child settling
+     back into `working` (an auto-cleared prompt, no gate) is dropped so the
+     orchestrator isn't woken for a pane it can only relaunch the tracker for. If
+     any actionable change remains, write it to the state dir, print it, and exit
+     0. If every settle was a resume-into-`working` (or every difference was a
+     blip), keep polling without exiting.
 
 "Change" = a child's agent_status changing OR a child appearing/disappearing
 (new task spawned / tab closed). The debounce is what filters herdr's sub-second
@@ -150,6 +154,20 @@ def update_episodes(episodes, baseline, cur, now):
             episodes.pop(pane, None)
 
 
+def actionable_changes(changes):
+    """Filter a settled report down to changes the orchestrator can act on.
+
+    A child settling into `working` is never an actionable gate - it just
+    resumed running (typically after an auto-cleared permission prompt in
+    drivethrough mode). Waking the orchestrator for those flips
+    (blocked→working, done→working, idle→working) burns a turn on a pane it
+    can only relaunch the tracker for. Drop them; keep every other settle
+    (blocked / idle / done / paused / unknown) and all membership changes
+    (appeared / disappeared), which do need a look.
+    """
+    return [c for c in changes if not (c["kind"] == "status" and c["to"] == "working")]
+
+
 def build_report(episodes, baseline, cur, now, max_debounce):
     changes = []
     for pane, ep in episodes.items():
@@ -237,12 +255,25 @@ def main():
                 args.parent, args.recursive, baseline, cur, args.debounce, args.max_debounce, args.poll
             )
             if report:
+                # Always fold the settled statuses into the baseline so the same
+                # change isn't re-debounced on the next poll - even when we
+                # suppress it below.
                 save_json(baseline_path, final)
-                save_json(latest_path, report)
+                baseline = final
+                acted = actionable_changes(report)
+                if acted:
+                    save_json(latest_path, acted)
+                    with open(log_path, "a") as f:
+                        f.write(json.dumps({"ts": time.time(), "changes": acted}) + "\n")
+                    print(json.dumps(acted, indent=2))
+                    return 0
+                # Every settle was a resume-into-`working` (non-actionable).
+                # Record it for debugging but don't wake the orchestrator;
+                # keep polling from the updated baseline.
                 with open(log_path, "a") as f:
-                    f.write(json.dumps({"ts": time.time(), "changes": report}) + "\n")
-                print(json.dumps(report, indent=2))
-                return 0
+                    f.write(json.dumps({"ts": time.time(), "suppressed": report}) + "\n")
+                cur = final
+                continue
             # every diff was a blip; re-read baseline stays, resume steady loop
         time.sleep(args.poll)
         cur = snapshot_retry(args.parent, args.recursive)

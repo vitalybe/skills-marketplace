@@ -18,12 +18,16 @@
 #              For a `claude` agent in a herdr pane the stop key is Escape (a
 #              single Esc cancels the current turn); herdr maps the key name
 #              `Escape` to the ESC byte. This is --force by definition.
+#   status     print the pane's agent_status (idle / working / blocked / unknown,
+#              or `missing` if the pane is gone) - one word, nothing else. Saves
+#              callers from hand-rolling `herdr pane get PANE | python3 -c ...`.
 #
 # Usage:
 #   herdr-io.sh wait-idle PANE [--interval N] [--streak N] [--timeout SEC] [--json]
 #   herdr-io.sh send PANE (--text STR | --file PATH) [--force] [--no-enter]
 #                         [--settle SEC] [--interval N] [--streak N] [--timeout SEC]
 #   herdr-io.sh stop PANE [--wait]
+#   herdr-io.sh status PANE
 #
 # A pane's agent_status comes from `herdr pane get PANE` at
 # `.result.pane.agent_status` (idle / working / blocked / unknown); a pane that
@@ -197,11 +201,24 @@ cmd_stop() {
   fi
 }
 
-[ $# -gt 0 ] || die "usage: herdr-io.sh {wait-idle|send|stop} PANE [options]"
+cmd_status() {
+  local pane=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -*) die "status: unknown arg: $1" ;;
+      *)  [ -z "$pane" ] || die "status: unexpected arg: $1"; pane="$1"; shift ;;
+    esac
+  done
+  [ -n "$pane" ] || die "status: PANE is required"
+  status_of "$pane"
+}
+
+[ $# -gt 0 ] || die "usage: herdr-io.sh {wait-idle|send|stop|status} PANE [options]"
 SUB="$1"; shift
 case "$SUB" in
   wait-idle) cmd_wait_idle "$@" ;;
   send)      cmd_send "$@" ;;
   stop)      cmd_stop "$@" ;;
-  *)         die "unknown subcommand: $SUB (expected wait-idle|send|stop)" ;;
+  status)    cmd_status "$@" ;;
+  *)         die "unknown subcommand: $SUB (expected wait-idle|send|stop|status)" ;;
 esac
