@@ -58,6 +58,31 @@ Grouped by `### <Project>` headings. One checkbox line per task:
 - [x] **Stop tracking varlock-generated `env.d.ts`** (gitignore-varlock-env-dts, PR #240) - merged
 ```
 
+## `## Pending tasks`
+
+The drop box for work the user wants spawned. Present only when the pending-tasks
+watcher is running (see [monitoring.md](monitoring.md)); the watcher parses this
+section, so its format is a contract, not a style choice:
+
+- An item is a **top-level `- [ ]` line** with a non-empty title, plus any
+  following **indented** lines (sub-bullets, pasted images, detail) - together
+  they are the item's block, and the whole block is handed to the dispatcher.
+- `- [x]` and empty-title checkboxes are ignored.
+- A **plain `- ` bullet is not an item** and will never fire. When the user writes
+  one, say so rather than letting it sit there unspawned.
+
+```markdown
+## Pending tasks
+
+- [ ] **Bottom nav pill mis-highlights a cased path** - `bottomNav.tsx:88` uses an
+      exact-match lookup, so `/History` highlights Chat.
+  - one-line `.toLowerCase()` fix
+```
+
+Items leave this section when they are dispatched: the block moves into
+`## Tasks` as a normal task line. The doc is usually open in the user's editor
+while they write here, so that move is always a narrow edit of the one block.
+
 ## Conventions
 
 - Group by `### <Project>` in both sections.

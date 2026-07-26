@@ -115,8 +115,16 @@ ${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/watch-pending.py \
 ```
 
 **Seed the baseline first** so items already present at session start do not
-auto-fire (`--seed`); only items added/edited afterward trigger a dispatch. On
-each exit:
+auto-fire (`--seed`); only items added/edited afterward trigger a dispatch.
+
+The watcher waits for the doc to go **quiet** - 20s with neither the items' text
+nor the file's mtime changing - so it does not fire mid-sentence. Leave that
+window alone; shortening it dispatches half-written items. Only top-level `- [ ]`
+lines are items: a plain `- ` bullet under `## Pending tasks` is invisible to the
+watcher, so if the user writes one, tell them rather than silently ignoring it
+(format: [references/status-doc-format.md](references/status-doc-format.md)).
+
+On each exit:
 
 - If `added` is non-empty, **dispatch each item** via `/workbench:task-herdr`:
   pass the item's intent + the integration rule + the next **tab number** (see
@@ -124,8 +132,11 @@ each exit:
   tab. The orchestrator does NOT write prompt prose and does NOT pick the route -
   task-herdr tells the agent to run devflow, and devflow triages the depth
   (fast-path vs full flow) itself. Move the item's block from `## Pending tasks`
-  into `## Tasks`. Dispatch is bounded, non-blocking work (a `sonnet` subagent is
-  fine) that must NOT itself run any watcher.
+  into `## Tasks` with a **narrow** edit of just that block - the user has the doc
+  open and is usually typing the next item, so never rewrite the section and
+  never reconstruct their neighbouring lines (see monitoring.md, "The doc is a
+  file the user has open"). Dispatch is bounded, non-blocking work (a `sonnet`
+  subagent is fine) that must NOT itself run any watcher.
 - If `added` is empty (a `timed_out` exit), relaunch and **say nothing** - that
   is the watcher's idle heartbeat, not news.
 - Then **relaunch exactly one** watcher in the background (no `--reset` - the

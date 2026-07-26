@@ -149,9 +149,12 @@ Rules for classifying and acting on a change:
   watcher. `pgrep -f "track-children.py|watch-pending.py"` before relaunching if
   you are unsure - duplicates race the shared `baseline.json` and each duplicate
   multiplies the wake-ups.
-- **Do not shorten `--debounce` to feel more responsive.** A short window is what
-  turns every between-steps pause into a wake-up. Detecting a real gate ~60s
-  later costs nothing; waking on every pause costs a turn each time.
+- **Do not shorten `--debounce` to feel more responsive.** This applies to both
+  loops. On the tracker a short window turns every between-steps pause into a
+  wake-up; on the pending watcher it turns every pause in the user's *typing*
+  into a dispatch of a half-written item. Detecting a real gate or a new item
+  ~60s later costs nothing; waking early costs a turn each time and can spawn a
+  task from an unfinished line.
 
 ## The pending-tasks watcher (task-creator)
 
@@ -171,13 +174,19 @@ and empty-title lines are ignored. Behaviour:
 
 1. **Steady phase** - re-check every **15s** (`--poll`) until the set of item
    titles differs from the persisted baseline.
-2. **Debounce phase** - once something differs, settle changes every **5s**
-   (`--debounce`), capped at **60s** (`--max`), so a user still typing does not
-   fire a half-written item.
+2. **Quiet-window phase** - once something differs, re-look every 3s and require
+   the doc to hold still for **20s** (`--debounce`) before settling, capped at
+   **180s** (`--max`). "Hold still" means both the full text of every item's
+   block (title *and* its indented sub-bullets) and the file's **mtime** are
+   unchanged - so a keystroke anywhere in the doc restarts the window and the
+   user finishes writing before the orchestrator wakes.
 3. On a settled change with **newly added** items, print
-   `{"added":[{title,block}...], "all_current":[...]}` and **exit 0**. A
-   removal-only change (items moved out to `## Tasks`) is folded into the
-   baseline silently and polling continues.
+   `{"added":[{title,block}...], "all_current":[...], "still_editing":<bool>}`
+   and **exit 0**. A removal-only change (items moved out to `## Tasks`) is
+   folded into the baseline silently and polling continues.
+   `still_editing:true` means the `--max` cap settled it while the doc was
+   *still* changing: an item may be half-written, so re-read the section before
+   dispatching rather than trusting the reported block.
 4. With `--max-wait` set, exit 0 with `{"added":[], "timed_out":true}` after that
    many idle seconds, so the caller can relaunch cleanly instead of being killed
    by a shell timeout.
@@ -212,3 +221,21 @@ The dispatch subagent never writes prompt prose itself - task-herdr is the singl
 owner of the spawned tab's prompt text. Tab numbers come from the
 `<scratchpad>/tab-counter` pointer (see orchestrator-init §5); read-and-increment
 it per spawn so tabs are labeled `T<n> - <Name>` by spawn order.
+
+### The doc is a file the user has open - edit it narrowly
+
+The status doc is live in the user's editor, and a dispatch lands right after
+they wrote the item that triggered it - which is often while they are typing the
+*next* one. So:
+
+- **Delete only the exact block you dispatched.** One narrow `Edit` whose
+  `old_string` is that item's own lines. Never rewrite `## Pending tasks` (or any
+  section) wholesale, and never reconstruct neighbouring lines from your read -
+  their content may be one keystroke old.
+- **On "File has been modified since read", re-`Read` and retry the narrow
+  delete once.** If it conflicts again, the user is actively typing: leave the
+  item where it is, dispatch stands, and pick the doc edit up on a later wake.
+  Never widen the edit to force it through.
+- **A partial line is not an item.** If a re-read shows a truncated title
+  (`- [ ] Is it st`), you caught a half-typed line. Do not dispatch it and do not
+  write it anywhere - drop it and let the watcher settle it properly.

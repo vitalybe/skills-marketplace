@@ -13,6 +13,15 @@ An item is a top-level `- [ ]` line with a non-empty title, together with any
 following indented sub-bullet lines (its "block"). Checked (`- [x]`) items and
 empty-title checkboxes are ignored.
 
+The settle test is deliberately content-and-file-wide: a change settles only once
+BOTH the full text of every item's block (title *and* its indented sub-bullets)
+and the file's mtime have held still for `--debounce` seconds. Comparing titles
+alone would fire the moment a title line stopped changing - while the user was
+still typing that item's sub-bullets, or its next sibling item - and hand the
+orchestrator a half-written spec to dispatch (and a doc it then races for the
+edit). Watching mtime covers edits anywhere in the doc, not just this section, so
+the orchestrator never wakes into a file the user has open and is typing in.
+
 State lives in <state-dir>/baseline.json (a list of item titles).
 
 Run it as an orchestrator-owned background process (never block inside a
@@ -25,8 +34,8 @@ Flags:
   --section NAME     section heading text (default "Pending tasks")
   --state-dir DIR    where baseline.json lives (default /tmp/pending-watch)
   --poll SECS        steady re-check interval (default 15)
-  --debounce SECS    per-change settle interval (default 5)
-  --max SECS         max debounce before settling by timeout (default 60)
+  --debounce SECS    quiet window the doc must hold still for (default 20)
+  --max SECS         max debounce before settling by timeout (default 180)
   --max-wait SECS    if >0, exit 0 with added:[] after this many seconds of no
                      added-item settle (lets the caller re-run cleanly)
   --once             single check vs baseline, print added, update baseline, exit
@@ -34,6 +43,8 @@ Flags:
   --reset            clear baseline before running
 """
 import argparse, json, os, re, sys, time
+
+SETTLE_POLL = 3.0  # how often we re-look while waiting out the quiet window
 
 TOP = re.compile(r'^- \[([ xX])\]\s*(.*)$')
 
@@ -77,6 +88,21 @@ def parse_items(section_lines):
 def current_items(path, section):
     return parse_items(read_section(path, section))
 
+def snapshot(path, section):
+    """(items, fingerprint, mtime).
+
+    The fingerprint covers each item's whole block, so a sub-bullet still being
+    typed counts as the doc not having settled yet. mtime covers edits elsewhere
+    in the file - the user is still writing even if this section is untouched.
+    """
+    items = current_items(path, section)
+    fingerprint = '\n\x1e'.join(it['block'] for it in items)
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        mtime = 0.0
+    return items, fingerprint, mtime
+
 def load_baseline(state_dir):
     p = os.path.join(state_dir, 'baseline.json')
     try:
@@ -98,8 +124,10 @@ def main():
     ap.add_argument('--section', default='Pending tasks')
     ap.add_argument('--state-dir', default='/tmp/pending-watch')
     ap.add_argument('--poll', type=float, default=15)
-    ap.add_argument('--debounce', type=float, default=5)
-    ap.add_argument('--max', type=float, default=60)
+    ap.add_argument('--debounce', type=float, default=20,
+                    help='quiet window: item text AND file mtime must both hold '
+                         'still this long before a change settles (default 20)')
+    ap.add_argument('--max', type=float, default=180)
     ap.add_argument('--max-wait', type=float, default=0,
                     help='if >0, exit 0 with added:[] after this many seconds '
                          'of no added-item settle (lets the caller re-run '
@@ -129,7 +157,7 @@ def main():
     started = time.time()
     while True:
         baseline = load_baseline(a.state_dir)
-        items = current_items(a.file, a.section)
+        items, fingerprint, mtime = snapshot(a.file, a.section)
         titles = [it['title'] for it in items]
         if titles == baseline or (set(titles) == set(baseline)):
             if a.max_wait > 0 and time.time() - started >= a.max_wait:
@@ -140,28 +168,33 @@ def main():
             time.sleep(a.poll)
             continue
 
-        # something differs -> debounce until stable
-        stable_since = time.time()
-        last = titles
+        # Something differs -> wait out a quiet window. Any further keystroke -
+        # in an item's title, in its sub-bullets, or anywhere else in the file -
+        # restarts the window, so the user finishes writing before we fire.
+        quiet_since = time.time()
         deadline = time.time() + a.max
+        timed_out = False
         while True:
-            time.sleep(a.debounce)
-            items = current_items(a.file, a.section)
-            titles = [it['title'] for it in items]
-            if titles != last:
-                last = titles
-                stable_since = time.time()
-                if time.time() >= deadline:
-                    break
-                continue
-            if time.time() - stable_since >= a.debounce or time.time() >= deadline:
+            time.sleep(min(SETTLE_POLL, a.debounce))
+            items, fp, mt = snapshot(a.file, a.section)
+            if fp != fingerprint or mt != mtime:
+                fingerprint, mtime = fp, mt
+                quiet_since = time.time()
+            if time.time() - quiet_since >= a.debounce:
                 break
+            if time.time() >= deadline:
+                timed_out = True
+                break
+        titles = [it['title'] for it in items]
 
         add = added(items, baseline)
         # fold current state into baseline regardless (covers removals)
         save_baseline(a.state_dir, titles)
         if add:
-            print(json.dumps({'added': add, 'all_current': titles}))
+            # still_editing: settled by the --max cap while the doc was changing,
+            # so an item may be half-written - re-read it before dispatching.
+            print(json.dumps({'added': add, 'all_current': titles,
+                              'still_editing': timed_out}))
             return
         # removal-only change: keep watching
         continue
