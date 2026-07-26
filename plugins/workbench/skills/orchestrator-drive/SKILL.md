@@ -107,6 +107,12 @@ it).
 - **Not re-reading the pane before sending.** An auto-mode tab may have moved past
   the gate; sending then types over a now-working agent. Re-read immediately
   before each send.
+- **Backgrounding a "send when it goes idle".** Plain `send` waits for *stable
+  idle*, and an agent parked at an option picker **is** stably idle - so a
+  fire-and-forget background send fires exactly into the picker and types your
+  prose in as the answer. Every send must happen in a turn where you have just
+  read the pane. If a message has to reach a tab later, park it in your
+  scratchpad as an outstanding item and deliver it on a verified-safe idle.
 - **Merging because you were told to "drive".** Driving stops at a committed
   state. Merge/close needs its own explicit confirmation unless the drive
   instruction said so.

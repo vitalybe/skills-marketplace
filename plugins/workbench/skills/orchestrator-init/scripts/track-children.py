@@ -11,21 +11,23 @@ It does NOT loop forever inside the orchestrator. One invocation:
   2. Steady phase: while nothing differs from the baseline, re-check every
      --poll seconds (default 20).
   3. Debounce phase: as soon as any child differs, track every differing child
-     in parallel, re-checking every --debounce seconds (default 5). A child is
+     in parallel, re-checking every --debounce seconds (default 30). A child is
      settled once its status has held for one debounce interval; a child whose
-     episode exceeds --max-debounce (default 60) settles by timeout. A child
-     that reverts to its baseline status is treated as a blip and dropped.
+     episode exceeds --max-debounce (default 180) settles by timeout. A child
+     that reverts to its baseline status is treated as a blip and dropped - so a
+     child that stops and resumes within the debounce window never wakes anyone.
   4. When every differing child has settled, fold the new statuses into the
-     baseline, then filter the report to *actionable* changes - a child settling
-     back into `working` (an auto-cleared prompt, no gate) is dropped so the
-     orchestrator isn't woken for a pane it can only relaunch the tracker for. If
-     any actionable change remains, write it to the state dir, print it, and exit
-     0. If every settle was a resume-into-`working` (or every difference was a
-     blip), keep polling without exiting.
+     baseline, then filter the report to *actionable* changes (see
+     `actionable_changes` - only a working -> stopped crossing and membership
+     changes survive). If any actionable change remains, write it to the state
+     dir, print it, and exit 0. Otherwise keep polling without exiting.
 
 "Change" = a child's agent_status changing OR a child appearing/disappearing
 (new task spawned / tab closed). The debounce is what filters herdr's sub-second
 idle blips, so no separate stable-idle wait is needed here.
+
+Every exit wakes the orchestrator and costs it a turn, so the bar for exiting is
+"the orchestrator has something to decide", not "herdr changed a label".
 
 State dir (default /tmp/herdr-monitoring):
   baseline.json  - {pane_id: {"status", "name"}} last settled snapshot; the
@@ -154,18 +156,35 @@ def update_episodes(episodes, baseline, cur, now):
             episodes.pop(pane, None)
 
 
+# herdr's labels for "the agent has stopped" are interchangeable and
+# inconsistent: the same waiting-at-a-gate state surfaces as `blocked` on one
+# agent and `idle` or `done` on another, and a single agent drifts between them
+# while sitting at one unanswered prompt. Only the working/stopped distinction
+# carries information.
+STOPPED = {"idle", "done", "blocked", "paused"}
+
+
 def actionable_changes(changes):
     """Filter a settled report down to changes the orchestrator can act on.
 
-    A child settling into `working` is never an actionable gate - it just
-    resumed running (typically after an auto-cleared permission prompt in
-    drivethrough mode). Waking the orchestrator for those flips
-    (blocked→working, done→working, idle→working) burns a turn on a pane it
-    can only relaunch the tracker for. Drop them; keep every other settle
-    (blocked / idle / done / paused / unknown) and all membership changes
+    Two classes of status settle are dropped:
+
+    - **-> `working`.** The child just resumed running (typically after an
+      auto-cleared permission prompt in drivethrough mode). Never a gate.
+    - **stopped -> stopped** (e.g. done->idle, blocked->done, idle->blocked).
+      The child did not run in between, so the pane holds exactly what the
+      orchestrator already read - the wake buys a re-read of unchanged content.
+
+    What survives is the only transition the orchestrator can act on - a child
+    crossing from `working` into a stopped state - plus all membership changes
     (appeared / disappeared), which do need a look.
     """
-    return [c for c in changes if not (c["kind"] == "status" and c["to"] == "working")]
+    def drop(c):
+        if c["kind"] != "status":
+            return False
+        return c["to"] == "working" or (c["from"] in STOPPED and c["to"] in STOPPED)
+
+    return [c for c in changes if not drop(c)]
 
 
 def build_report(episodes, baseline, cur, now, max_debounce):
@@ -215,8 +234,8 @@ def main():
     ap.add_argument("--parent", default=os.environ.get("HERDR_PANE_ID", ""))
     ap.add_argument("--recursive", action="store_true")
     ap.add_argument("--poll", type=float, default=20.0)
-    ap.add_argument("--debounce", type=float, default=5.0)
-    ap.add_argument("--max-debounce", type=float, default=60.0)
+    ap.add_argument("--debounce", type=float, default=30.0)
+    ap.add_argument("--max-debounce", type=float, default=180.0)
     ap.add_argument("--state-dir", default="/tmp/herdr-monitoring")
     ap.add_argument("--reset", action="store_true")
     args = ap.parse_args()
@@ -267,9 +286,10 @@ def main():
                         f.write(json.dumps({"ts": time.time(), "changes": acted}) + "\n")
                     print(json.dumps(acted, indent=2))
                     return 0
-                # Every settle was a resume-into-`working` (non-actionable).
-                # Record it for debugging but don't wake the orchestrator;
-                # keep polling from the updated baseline.
+                # Every settle was non-actionable (a resume into `working`, or a
+                # drift between two stopped labels). Record it for debugging but
+                # don't wake the orchestrator; keep polling from the updated
+                # baseline.
                 with open(log_path, "a") as f:
                     f.write(json.dumps({"ts": time.time(), "suppressed": report}) + "\n")
                 cur = final

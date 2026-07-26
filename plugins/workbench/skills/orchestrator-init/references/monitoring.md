@@ -23,17 +23,36 @@ to `$HERDR_PANE_ID`) and watches their `agent_status`:
 1. **Steady phase** - while nothing differs from the persisted baseline,
    re-check every **20s** (`--poll`).
 2. **Debounce phase** - as soon as any child differs, track every differing
-   child **in parallel**, re-checking every **5s** (`--debounce`). A child
+   child **in parallel**, re-checking every **30s** (`--debounce`). A child
    settles once its status holds for one debounce interval; a child still
-   flapping after **60s** (`--max-debounce`) settles by timeout. A child that
-   reverts to its baseline status was a blip and is dropped - this is what
-   filters herdr's sub-second idle blips, so no separate stable-idle wait is
-   needed.
-3. On a settled change it writes the report, folds the new statuses into the
-   baseline, prints the report as JSON, and **exits 0**.
+   flapping after **180s** (`--max-debounce`) settles by timeout. A child that
+   reverts to its baseline status was a blip and is dropped. The window is long
+   on purpose: an agent pausing between steps is back to `working` well inside
+   it and never wakes anyone, while a real gate sits unanswered for minutes.
+3. On a settled change it folds the new statuses into the baseline, filters the
+   report to *actionable* changes, and - if anything survives - writes the
+   report, prints it as JSON, and **exits 0**. If nothing survives it keeps
+   polling.
 
 A "change" is either a child's `agent_status` changing **or** a child appearing
 / disappearing (task spawned / tab closed).
+
+### What counts as actionable
+
+Every exit costs the orchestrator a turn, so the tracker only exits when there
+is something to decide. Two kinds of settle are dropped and logged as
+`suppressed` instead:
+
+- **`-> working`** - the child resumed running (typically an auto-cleared
+  permission prompt in drivethrough mode). Never a gate.
+- **stopped `->` stopped** - `done->idle`, `blocked->done`, `idle->blocked` and
+  friends. herdr's stopped labels (`idle` / `done` / `blocked` / `paused`) are
+  interchangeable and drift on their own while an agent sits at one unanswered
+  prompt. The child did not run in between, so the pane still holds exactly what
+  you read last time.
+
+What survives is a child crossing from `working` into a stopped state, plus
+`appeared` / `disappeared`.
 
 ### State - `/tmp/herdr-monitoring/`
 
@@ -59,8 +78,8 @@ start a fresh baseline.
 ```
 
 `kind` is `status` | `appeared` | `disappeared`; `from`/`to` are `null` for
-appear/disappear; `timed_out` means the child settled by the 60s cap rather than
-by stabilising.
+appear/disappear; `timed_out` means the child settled by the `--max-debounce`
+cap rather than by stabilising.
 
 ## Handling a tracker exit
 
@@ -75,6 +94,16 @@ On each exit read `latest.json` and handle every change. You may offload the pan
 reads + doc edit to a **bounded, non-blocking** subagent (a `general-purpose`
 Agent that runs NO watcher/tracker and no blocking loop) to keep that noise out
 of your context; give it the pane ids, the target-doc path, and the rules below.
+
+**Say nothing when nothing changed.** A monitoring exit is machine chatter, not
+a user request. If handling it produced no doc edit and no decision the user
+needs - a `timed_out` watcher exit, a pane still parked at the same gate you
+already reported, a finished task you already surfaced - relaunch the loop and
+end the turn with **no user-facing text at all**. Do not narrate "watcher timed
+out, relaunched", "both loops healthy", or "still waiting". A session where the
+orchestrator speaks on every wake-up reads as if it is firing constantly even
+when the loops are behaving; speak only when the status changed or the user has
+something to answer.
 
 Rules for classifying and acting on a change:
 
@@ -102,6 +131,27 @@ Rules for classifying and acting on a change:
 
 `<ORCH_PANE>` is your `$HERDR_PANE_ID`; `<TARGET_PATH>` comes from the
 `orchestrator-target` pointer file.
+
+## Common mistakes
+
+- **Never queue a "send when idle" in the background.** `herdr-io.sh send`
+  without `--force` waits for *stable idle* - and an agent parked at an
+  AskUserQuestion picker **is** stably idle. A backgrounded send therefore fires
+  precisely into the option picker and types your prose in as the answer. Send
+  only from a turn where you have just read the pane and confirmed it is at a
+  free-text prompt, never as a fire-and-forget background task. If you have a
+  message that must reach a tab later, record it in your scratchpad as an
+  outstanding item and deliver it on a verified-safe idle.
+- **Answer a numbered-option gate with the bare option number**, atomically, via
+  `herdr-io.sh send <pane> --text "<n>" --force`. Do not send prose into a
+  picker, and do not split the text and the Enter into two calls.
+- **Do not relaunch a second loop "just in case".** Exactly one tracker and one
+  watcher. `pgrep -f "track-children.py|watch-pending.py"` before relaunching if
+  you are unsure - duplicates race the shared `baseline.json` and each duplicate
+  multiplies the wake-ups.
+- **Do not shorten `--debounce` to feel more responsive.** A short window is what
+  turns every between-steps pause into a wake-up. Detecting a real gate ~60s
+  later costs nothing; waking on every pause costs a turn each time.
 
 ## The pending-tasks watcher (task-creator)
 

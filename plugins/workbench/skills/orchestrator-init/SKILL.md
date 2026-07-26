@@ -57,6 +57,13 @@ Behaviour and report shape: [references/monitoring.md](references/monitoring.md)
 Keep exactly one tracker alive; relaunch exactly one per exit (no `--reset` - the
 baseline persists across the gap).
 
+The tracker deliberately stays quiet: it only exits for a child crossing from
+`working` into a stopped state, or appearing/disappearing. Resumes into
+`working`, and drift between herdr's interchangeable stopped labels
+(`done`→`idle`, `blocked`→`done`, …), are suppressed - the child did not run, so
+the pane holds nothing new. Leave the defaults alone; shortening `--debounce`
+turns every between-steps pause into a wake-up.
+
 On each exit, handle the change - you may offload the pane-read + doc-edit to a
 **bounded, non-blocking** subagent to keep that noise out of your context - under
 these rules:
@@ -81,6 +88,11 @@ these rules:
 - Update the target doc to current state per
   [references/status-doc-format.md](references/status-doc-format.md) -
   current-state voice, no "was X now Y".
+- **Say nothing when nothing changed.** If handling the exit produced no doc edit
+  and nothing the user must answer, relaunch and end the turn with **no
+  user-facing text** - no "watcher timed out, relaunched", no "both loops
+  healthy". Narrating every wake-up is what makes a well-behaved orchestrator
+  feel like it is firing constantly.
 
 Then relaunch one tracker and continue.
 
@@ -114,6 +126,8 @@ each exit:
   (fast-path vs full flow) itself. Move the item's block from `## Pending tasks`
   into `## Tasks`. Dispatch is bounded, non-blocking work (a `sonnet` subagent is
   fine) that must NOT itself run any watcher.
+- If `added` is empty (a `timed_out` exit), relaunch and **say nothing** - that
+  is the watcher's idle heartbeat, not news.
 - Then **relaunch exactly one** watcher in the background (no `--reset` - the
   baseline persists across the exit/relaunch gap so nothing is missed).
 
