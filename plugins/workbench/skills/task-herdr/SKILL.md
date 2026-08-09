@@ -130,21 +130,38 @@ STOP and ask rather than guess.
 
 ### Talking to / stopping a tab
 
-Send messages through the idle-guarded helper, never a bare
-`herdr pane send-text` + `send-keys` - typing into a working agent
-queues/garbles the input:
+**Send messages with the `SendMessage` tool, not by typing into the pane.** A
+spawned tab is a real `claude` session started with `--name "<title>"`, so it is
+a peer you can message directly. Delivery is queued and drained by the receiver -
+no idle guard, no race with a working agent, no garbled keystrokes.
 
-```bash
-${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh send <pane> --file <msg-file>
-```
+Addressing (the herdr agent name IS the SendMessage name):
 
-`send` runs the same stable `wait-idle` first, then types the message and
-presses Enter; if the agent never settles within the timeout it refuses
-(`--force` injects anyway). To deliberately interrupt a working agent:
+1. Take the agent's **name** from the spawn JSON (`title`) or from
+   `herdr agent list` / `herdr agent children`.
+2. Call `ListAgents` to get that name's ` [ref]`. A peer that is not already in
+   your conversation is refused on the bare name - the error itself hands you the
+   ref, so re-sending with it is fine too.
+3. `SendMessage({to: "<title> [<ref>]", message: "..."})`.
 
-```bash
-${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh stop <pane>   # send Escape
-```
+Two things `SendMessage` cannot do, which still go through the pane:
+
+- **A numbered-option gate** (`AskUserQuestion`). A message sent to an agent
+  sitting on the picker is queued as its *next* prompt - the picker stays open
+  and unanswered. Answer it with the keystroke:
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh send <pane> --text "<n>" --force
+  ```
+- **Interrupting a working agent**:
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh stop <pane>   # send Escape
+  ```
+
+Reading and polling stay with herdr as well: `herdr pane read <pane> --source
+recent`, `herdr agent children`, `herdr-io.sh status <pane>`.
+
+A tab spawned before this skill set `--name` will not appear under its title in
+`ListAgents`; fall back to `herdr-io.sh send <pane>` for that one.
 
 ## Cleanup
 
@@ -153,13 +170,14 @@ When a task's work is done: remove the worktree, close the tab
 
 ## Common mistakes
 
-- **Answering an interactive gate with plain `send`.** `herdr-io.sh send` waits
-  for stable idle first, but an agent blocked on a prompt/gate reports `blocked`
-  and never goes idle - so `send` times out and refuses. To answer a gate, either
-  `herdr-io.sh send <pane> --force` (skips the idle wait) or read the pane
-  (`herdr pane read <pane> --source recent`) and send the exact keystroke. Note a
-  tab in auto mode may auto-clear some gates before you act - re-read the pane
-  before sending so you don't type over a now-working agent.
+- **Typing into the pane for ordinary messages.** Use `SendMessage`; the pane is
+  for option-picker keystrokes and Escape only.
+- **Answering a numbered-option gate with `SendMessage`.** The message queues
+  behind the picker and gets read as the *next* prompt after someone else clears
+  it - the gate itself stays open. Send the option number as a keystroke:
+  `herdr-io.sh send <pane> --text "<n>" --force` (`--force` skips the idle wait; a
+  gate-blocked agent reports `blocked` and never goes idle). Re-read the pane
+  first - a tab in auto mode may have cleared the gate already.
 - **Fetching a Claude Design spec with WebFetch or a browser.** Those hit an auth
   wall and render empty. Read the spec with the built-in DesignSync tooling - see
   the `claude-design` skill.

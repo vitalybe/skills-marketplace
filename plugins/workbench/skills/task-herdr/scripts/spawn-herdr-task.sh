@@ -17,9 +17,10 @@
 #   --prompt-file PATH   File whose contents become claude's initial prompt
 #                        (required). Passed as claude's positional arg, so
 #                        claude starts interactive with the prompt submitted.
-#   --title TITLE        Human agent name (herdr uses it as the agent's name; no
-#                        prefix). Capped to 29 chars (under 30). Defaults to the
-#                        slug (also capped).
+#   --title TITLE        Human agent name. Used BOTH as herdr's agent name and as
+#                        `claude --name`, so the herdr agent name doubles as the
+#                        agent's SendMessage address. No prefix. Capped to 29
+#                        chars (under 30). Defaults to the slug (also capped).
 #   --tab-number N       Optional ordinal for the tab label. When set, the tab is
 #                        labeled "T<N> - <title>" (prefix on the TAB label only;
 #                        the agent name stays the raw title). Used by the
@@ -113,7 +114,10 @@ EOF
 #    its focused (root) pane, cd's to --cwd, and starts claude interactive with
 #    the prompt as claude's positional arg (single argv element over the socket,
 #    no shell re-parse - multiline prompts are safe).
-AGENT_JSON="$(herdr agent start "$TITLE" --tab "$NEW_TAB" --cwd "$WORKTREE" --no-focus -- claude "$(cat "$PROMPT_FILE")")"
+#    `claude --name "$TITLE"` sets the session's display name to the SAME string
+#    herdr uses as the agent name, so the name in `herdr agent list` is also the
+#    SendMessage address for that agent.
+AGENT_JSON="$(herdr agent start "$TITLE" --tab "$NEW_TAB" --cwd "$WORKTREE" --no-focus -- claude --name "$TITLE" "$(cat "$PROMPT_FILE")")"
 read -r ROOT_PANE TAB_ID WORKSPACE AGENT_NAME <<EOF
 $(printf '%s' "$AGENT_JSON" | python3 -c '
 import sys, json

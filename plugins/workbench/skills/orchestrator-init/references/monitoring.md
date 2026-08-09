@@ -120,11 +120,11 @@ Rules for classifying and acting on a change:
   confirmation** before merging. Never close herdr tabs.
 - **Do not proxy in-pane gates.** The user answers requirements / plan /
   permission gates directly in the tab; summarize them in the doc - do not relay
-  them via AskUserQuestion or answer them yourself. Send input to a tab only for
-  an obvious self-serve action (e.g. a design upload the orchestrator can do
-  itself), via `/workbench:task-herdr`'s `scripts/herdr-io.sh` (`send` / `stop`).
-  The sole exception is a task the user explicitly told you to drive - then answer
-  that task's gates per `/workbench:orchestrator-drive`.
+  them via AskUserQuestion or answer them yourself. Message a tab only for an
+  obvious self-serve action (e.g. a design upload the orchestrator can do
+  itself), with `SendMessage` - see `/workbench:task-herdr`, "Talking to /
+  stopping a tab". The sole exception is a task the user explicitly told you to
+  drive - then answer that task's gates per `/workbench:orchestrator-drive`.
 - Update the status doc to current state per
   [status-doc-format.md](status-doc-format.md) - current-state voice; never write
   "was X now Y".
@@ -134,17 +134,13 @@ Rules for classifying and acting on a change:
 
 ## Common mistakes
 
-- **Never queue a "send when idle" in the background.** `herdr-io.sh send`
-  without `--force` waits for *stable idle* - and an agent parked at an
-  AskUserQuestion picker **is** stably idle. A backgrounded send therefore fires
-  precisely into the option picker and types your prose in as the answer. Send
-  only from a turn where you have just read the pane and confirmed it is at a
-  free-text prompt, never as a fire-and-forget background task. If you have a
-  message that must reach a tab later, record it in your scratchpad as an
-  outstanding item and deliver it on a verified-safe idle.
+- **Do not type prose into a pane.** Ordinary messages to a tab go through
+  `SendMessage`, which queues safely and needs no idle guard - the whole class of
+  "typed over a working agent" and "fired into an option picker" failures comes
+  from typing keystrokes. Keystrokes are for option pickers and Escape only.
 - **Answer a numbered-option gate with the bare option number**, atomically, via
-  `herdr-io.sh send <pane> --text "<n>" --force`. Do not send prose into a
-  picker, and do not split the text and the Enter into two calls.
+  `herdr-io.sh send <pane> --text "<n>" --force`. `SendMessage` does NOT clear a
+  picker - it queues as the agent's next prompt while the gate stays open.
 - **Do not relaunch a second loop "just in case".** Exactly one tracker and one
   watcher. `pgrep -f "track-children.py|watch-pending.py"` before relaunching if
   you are unsure - duplicates race the shared `baseline.json` and each duplicate

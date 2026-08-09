@@ -55,20 +55,26 @@ spawns unless they say so.
    `herdr pane get ... | python3`.
 
 3. **Answer the gate.** Approve the plan / answer the requirement so the task
-   advances (typically into the Code phase). Send input through task-herdr's I/O
-   helper - a gate-blocked agent reports `blocked` and never goes idle, so the
-   plain idle-guarded `send` refuses; use `--force`:
+   advances (typically into the Code phase). Which channel depends on what the
+   pane is showing:
 
-   ```bash
-   ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh send <pane> --file <answer-file> --force
-   ```
-
-   (or read the pane and send the exact keystroke). Write multiline answers to a
-   temp file and pass `--file`. For a numbered-option picker (an `AskUserQuestion`
-   gate), answer through the same helper - `herdr-io.sh send <pane> --text "1"
-   --force` types the choice and submits it atomically. Prefer this over raw
-   `herdr pane send-text` + a separate `send-keys Enter`: the two-call form races
-   the submit and can leave the choice typed but unsent.
+   - **A numbered-option picker** (an `AskUserQuestion` gate): send the bare
+     option number as a keystroke. `SendMessage` cannot clear a picker - it is
+     queued as the agent's *next* prompt and the gate stays open.
+     ```bash
+     ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh send <pane> --text "1" --force
+     ```
+     `--force` skips the idle wait (a gate-blocked agent reports `blocked` and
+     never goes idle) and the helper types + submits atomically - prefer it over
+     raw `herdr pane send-text` + a separate `send-keys Enter`, which races the
+     submit and can leave the choice typed but unsent.
+   - **Everything else** - a free-text question, an approval to type out, any
+     steering: `SendMessage`, addressed by the task's herdr agent name plus its
+     `ListAgents` ref (see `/workbench:task-herdr`, "Talking to / stopping a
+     tab"). No idle guard needed; the message is queued and drained by the agent.
+     ```json
+     {"to": "<title> [<ref>]", "message": "Plan approved - proceed to code."}
+     ```
 
 4. **Judgment calls: follow the agent's own lean.** When a gate asks you to pick
    between reasonable options (a token name, a small UX detail), go with the
@@ -101,18 +107,13 @@ it).
 
 - **Driving a tab the user did not name.** The authorization is per-task. A
   different blocked tab is still the user's to answer.
+- **Answering an option picker with `SendMessage`.** The gate stays open and your
+  answer surfaces later as the agent's next prompt. A picker needs the keystroke.
 - **Using plain `send` on a gate.** A gate-blocked agent never goes idle, so the
-  idle-guarded `send` times out and refuses. Use `--force`, or send the exact
-  keystroke after reading the pane.
-- **Not re-reading the pane before sending.** An auto-mode tab may have moved past
-  the gate; sending then types over a now-working agent. Re-read immediately
-  before each send.
-- **Backgrounding a "send when it goes idle".** Plain `send` waits for *stable
-  idle*, and an agent parked at an option picker **is** stably idle - so a
-  fire-and-forget background send fires exactly into the picker and types your
-  prose in as the answer. Every send must happen in a turn where you have just
-  read the pane. If a message has to reach a tab later, park it in your
-  scratchpad as an outstanding item and deliver it on a verified-safe idle.
+  idle-guarded `send` times out and refuses. Use `--force`.
+- **Not re-reading the pane before a keystroke.** An auto-mode tab may have moved
+  past the gate; the keystroke then lands in a now-working agent. Re-read
+  immediately before each one. (`SendMessage` is safe either way - it queues.)
 - **Merging because you were told to "drive".** Driving stops at a committed
   state. Merge/close needs its own explicit confirmation unless the drive
   instruction said so.

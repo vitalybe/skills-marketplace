@@ -81,8 +81,9 @@ these rules:
   confirmation** before merging. Never close herdr tabs.
 - **Do not proxy in-pane gates.** The user answers requirements/plan/permission
   gates directly in the tab; you summarize them in the doc - you do not relay
-  them via AskUserQuestion or answer them yourself. Send input to a tab only for
-  an obvious self-serve action (e.g. a design upload you can do yourself). The
+  them via AskUserQuestion or answer them yourself. Message a tab only for an
+  obvious self-serve action (e.g. a design upload you can do yourself), with
+  `SendMessage` - see `/workbench:task-herdr`, "Talking to / stopping a tab". The
   one exception is when the user explicitly asks you to drive a specific task to
   completion - then answer that task's gates per `/workbench:orchestrator-drive`.
 - Update the target doc to current state per
