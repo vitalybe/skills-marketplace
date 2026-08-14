@@ -87,6 +87,30 @@ agent-browser cannot reach (or reliably drive) some surfaces. If you hit any of 
 
 When you stop, tell the user *why* in one sentence ("agent-browser can't see inside the login iframe, switching to puppeteer") - they may know a shortcut you don't.
 
+**The one case where you do NOT escalate: bot detection.** Every entry above is a
+capability limit - agent-browser can't reach the surface, so a lower-level driver
+can. Detection is the opposite: swapping drivers buys you nothing, because the
+block has nothing to do with which driver you're holding. agent-browser,
+Playwright, and Patchright (a purpose-built undetected Playwright fork) return
+byte-identical output on a detection-gated page - all three blocked headless with
+the same interstitial, all three fine headed.
+
+Symptom: a block page or CAPTCHA where you expected content ("You've been blocked
+by network security", "Prove your humanity"), reproducing identically no matter
+what you drive it with. The levers that actually move it:
+
+- **Run headed.** Headless Chrome announces itself - the UA literally reads
+  `HeadlessChrome/<version>`. Spoofing it with `--user-agent` only downgrades a
+  hard block to a CAPTCHA, because `screen` stays pinned at 800x600 and
+  `--window-size` doesn't change it. There is no header-level fix.
+- **Warm the profile.** A persistent profile with real history gets through where
+  a fresh one is blocked. See the fresh-profile caveat in
+  `references/final-script-style.md`.
+
+If headed + a warmed profile isn't enough, the remaining levers are IP reputation
+and a real logged-in session - not Phase 3. Say so and ask the user rather than
+burning an afternoon down the ladder.
+
 ### Phase 3: Replay with puppeteer (fallback path)
 
 The puppeteer fallback uses an **incremental WS-based pattern**: one long-running launcher process owns the headed browser, and short step-scripts connect to it over CDP to run individual actions. This is exactly the same explore-then-codify rhythm as Phase 2, just with more raw control.

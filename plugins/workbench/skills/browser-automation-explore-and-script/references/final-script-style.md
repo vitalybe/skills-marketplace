@@ -116,5 +116,27 @@ After writing the production script, run it cold (not from the explore state). V
 
 - **Silent steps.** A 60-second `await page.waitForSelector(...)` with no log line in between. If it times out, you have no idea why - did the URL change? Was the selector wrong? Was the network slow? Log around long waits.
 - **One-shot selectors.** `await page.click("button.primary")` with no fallback and no diagnostic. When that breaks (and it will), the script just fails with no clue. Wrap in `step()` and capture state.
-- **Hidden state.** "It worked once interactively, so I'll just commit it." Persistent state from the explore session is invisible at production runtime. Test with a fresh profile dir at least once.
+- **Hidden state.** "It worked once interactively, so I'll just commit it." Persistent state from the explore session is invisible at production runtime. Test with a fresh profile dir at least once - with the caveat below if the site is detection-gated.
 - **Cleaning up too aggressively.** Don't `rm -rf debug/` in the script. The debug artifacts are exactly what you need to debug the next failure. The orchestrator's job to garbage-collect, not the fetcher's.
+
+### The fresh-profile caveat on detection-gated sites
+
+On a site fronted by a WAF or bot detection, a fresh profile is itself a signal -
+it can be blocked outright while a warmed profile sails through. That makes a
+cold-run failure **ambiguous**: you cannot tell "my script is broken" from "the
+fresh profile got flagged" by looking at the failure alone. Same code, same
+machine, same minute will happily give you a full page on the seasoned profile
+and a hard block on the new one.
+
+Isolate before you touch the script:
+
+1. Re-run the **unchanged** code against the known-good profile.
+2. Still works -> the profile was flagged, your script is fine.
+3. Also fails -> now it's a real bug, debug normally.
+
+Skipping this costs you an afternoon rewriting a script that was never broken.
+
+Treat fresh profiles as **consumable**. Each one that gets blocked feeds the
+site's reputation model for your whole IP, so spraying new profile dirs at a
+failing flow makes the next attempt harder, not easier. Warm one profile, keep
+it, and reuse it.
