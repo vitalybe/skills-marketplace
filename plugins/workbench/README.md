@@ -33,7 +33,7 @@ The skill **files** ship with the plugin; their **runtimes, CLIs, and credential
 |---|---|
 | `task-jira` | the `tasks` CLI (from the ai-enablement repo) on `PATH`; a JIRA API token in the macOS keychain (`jira-api-token`). |
 | `task-obsidian` | the `obsidian-tasks` CLI (`~/hq/bin/obsidian-tasks`); `$OBSIDIAN_VAULT`. |
-| `wiki` | an Obsidian vault at `$OBSIDIAN_VAULT` (default `~/obsidian`) with its own routing `CLAUDE.md`. |
+| `wiki` | an Obsidian vault at `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`) with its own routing `CLAUDE.md`. |
 | `schedule-work-meeting` | the Microsoft 365 + Slack MCP connectors; a browser logged into Outlook Web. |
 | `skill-improve-session` | `node` + `pnpm` (installs the bundled parser deps on first run). |
 | `browser-automation-explore-and-script` | `node`; Puppeteer/Playwright installed in the target project. |

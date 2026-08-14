@@ -2,7 +2,7 @@
 name: wiki
 description: >-
   Read from and write to the user's personal Obsidian knowledge vault at
-  `$OBSIDIAN_VAULT` (default `~/obsidian`) - wiki pages, contacts,
+  `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`) - wiki pages, contacts,
   calendar events, finance/receipts, kids-money, "tell someone" items,
   day logs, movies, storage, and other structured data tables. Use
   whenever the user wants to capture, look up, route, or update personal
@@ -29,10 +29,10 @@ guess its rules here; read them fresh each time so they never drift.
 
 ## Start of every vault turn
 
-1. Resolve the vault root from `$OBSIDIAN_VAULT` (default `~/obsidian`):
+1. Resolve the vault root from `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`):
 
    ```bash
-   VAULT="${OBSIDIAN_VAULT:-$HOME/obsidian}"
+   VAULT="${OBSIDIAN_VAULT:-$HOME/homebot/obsidian}"
    [ -d "$VAULT" ] || echo "vault not found - set \$OBSIDIAN_VAULT"
    ```
 

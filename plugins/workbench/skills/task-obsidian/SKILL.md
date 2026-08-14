@@ -34,7 +34,7 @@ For the rest of this doc, just write `obsidian-tasks` - substitute `$OT`
 if it isn't on PATH.
 
 The vault root is taken from `$OBSIDIAN_VAULT` (default
-`~/obsidian`). Task files live under `data/tasks/data/`.
+`~/homebot/obsidian`). Task files live under `data/tasks/data/`.
 
 ## Subcommand cheat sheet
 
