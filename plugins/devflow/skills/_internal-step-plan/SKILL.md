@@ -26,7 +26,7 @@ filling in `## Plan`, `## Tests`, and `## Acceptance` here.
 
 Read architecture docs relevant to this task:
 
-1. Read the architecture doc index in CLAUDE.md (under "Architecture Documentation")
+1. Read the architecture doc index in CLAUDE.md
 2. Identify which specific docs are relevant based on the task description - read those docs
 3. Also read the pattern docs referenced by the task's code areas
 

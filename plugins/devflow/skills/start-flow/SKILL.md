@@ -48,13 +48,13 @@ The phases are:
 
 Map the phase to the next skill:
 
-| `<current-phase>` | Next skill |
-|---|---|
-| _empty_ | **Triage first** (see below); take the fast path, or start `/devflow:_internal-step-requirements` |
-| `Requirements` | `/devflow:_internal-step-plan` |
-| `Plan` | `/devflow:_internal-step-code` |
-| `Code` | `/devflow:_internal-step-close` |
-| `Done` | task is closed - stop and consult the user |
+| `<current-phase>` | Next skill                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| _empty_           | **Triage first** (see below); take the fast path, or start `/devflow:_internal-step-requirements` |
+| `Requirements`    | `/devflow:_internal-step-plan`                                                                    |
+| `Plan`            | `/devflow:_internal-step-code`                                                                    |
+| `Code`            | `/devflow:_internal-step-close`                                                                   |
+| `Done`            | task is closed - stop and consult the user                                                        |
 
 Run the next skill. If the output of `flow-progress-get` doesn't match
 any of the rows above (e.g. a typo or stale marker), stop and consult
