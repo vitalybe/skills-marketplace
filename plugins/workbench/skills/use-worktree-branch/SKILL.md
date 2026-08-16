@@ -183,12 +183,22 @@ If the default branch does not exist locally, use
 
 ## 6. Enter the worktree and restore the dirty changes
 
-```bash
-cd "<worktree-path>"
+Move the **session** into the worktree with the `EnterWorktree` tool, passing the
+worktree you just created as `path`:
+
+```
+EnterWorktree({ path: "<worktree-path>" })
 ```
 
-The working-directory change persists across subsequent Bash calls, so everything
-after this point happens in the worktree.
+A bare `cd` in Bash is not enough. It only moves the Bash tool's own directory -
+the session stays pointed at the original checkout, so the worktree's `CLAUDE.md`,
+memory, and plans never load and the user has to run `/cd` by hand. `EnterWorktree`
+switches the session and refreshes those caches. Use `path` (never `name`): the
+worktree already exists, and step 5 registered it in `git worktree list`, which is
+what `path` requires.
+
+If `EnterWorktree` is unavailable, fall back to `cd "<worktree-path>"` in Bash and
+tell the user to run `/cd <worktree-path>` so their session follows.
 
 If you stashed in step 4, restore it here:
 
@@ -214,6 +224,17 @@ State plainly:
   uncommitted in the worktree, ready to work on or hand to
   `/workbench:git-commit`.
 - The worktree path, so the user knows where their editor should point.
+
+## 8. Carry on with the task
+
+This skill is usually a preflight, not the request. If the invocation arguments
+describe actual work ("set up a worktree and then do X", or just X), that
+description **is** the task - keep it and start on it in the worktree, in the same
+turn, right after the report. Never end with "say the word and I'll start": the
+user already said it, and stopping forces them to paste the whole request again.
+
+Only stop after the report when the arguments asked for nothing beyond the
+worktree setup, or when step 6's stash pop conflicted.
 
 ## Safety rules
 
