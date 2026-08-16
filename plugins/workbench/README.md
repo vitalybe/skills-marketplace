@@ -9,7 +9,7 @@ Invoked as `/workbench:<name>`.
 | Skill | Role |
 |---|---|
 | `git-commit` | Split uncommitted changes into logical, well-scoped commits via a forked subagent. |
-| `git-commit-worktree` | Move the current work into a per-task worktree+branch (slugged to the task) and commit it there; no-ops to `git-commit` if already in a worktree. |
+| `use-worktree-branch` | Ensure the work sits in a linked worktree on its own branch - creating it, renaming commits off main, and carrying dirty changes over via stash/pop. Never commits. |
 | `git-merge-local` | Merge the current branch into the default branch locally with `--no-ff`, including worktree cleanup. |
 | `code-varlock` | Set up, extend, or debug a varlock env schema (validation, type generation, 1Password secrets). |
 | `code-refactor-logging` | Refactor console/log output to structured logging standards (levels, colors, prefixes). |
