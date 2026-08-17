@@ -50,8 +50,23 @@ complete only when that phase's sub-agent reports the phase done.
 
 Run the phases one at a time, in the returned order, each in its own
 sub-agent: invoke the skill the mapping gave for that phase, on the model
-the mapping gave for that phase. Pass it the user's request verbatim plus
-the phase-mapping reasoning.
+the mapping gave for that phase. Pass it the spawn prompt below.
+
+### Spawn prompt
+
+Contains ONLY:
+
+1. One line invoking the skill via the Skill tool, e.g. "Invoke the skill
+   `devflow:_internal-step-requirements` and follow it."
+2. The user's request, verbatim.
+3. The phase-mapping's `why` line for this phase.
+4. Session-specific facts the skill can't re-derive itself, if any (e.g.
+   "ignore the unrelated uncommitted changes in X", a worktree path to use
+   if it differs from the default CWD).
+
+Nothing else: the step skill re-injects branch, config, issue details, and
+plan path itself when it loads, and carries its own sub-agent reporting
+instructions.
 
 Mark the phase's task complete, then start the next phase's sub-agent. If
 a phase reports failure or that it is blocked, stop, mark nothing
