@@ -4,15 +4,6 @@ Each task gets one living plan file under `_plans/`, committed on its
 feature branch and merged with the PR. The issue tracker holds status +
 phase + workflow metadata; the file holds the prose.
 
-> **`_plans/` must NOT be gitignored.** The whole model here is a
-> versioned, diffable plan that ships with the PR and stays on `main` as a
-> permanent record - a `.gitignore` entry for `_plans/` defeats that. If a
-> "commit the plan file" step fails with *"paths are ignored by one of your
-> .gitignore files"*, treat it as a **repo misconfiguration**: surface it to
-> the user and offer to remove the `_plans/` line from `.gitignore` - do not
-> paper over it with `git add -f` or silently downgrade the plan to a
-> throwaway local file.
-
 ## Location & naming
 
 ```
@@ -24,15 +15,21 @@ _plans/<slug>.md          # task-less mode (no tracker key)
 - `<slug>`: kebab-case of the task summary, truncated to ~50 chars.
 - Task-less runs have no KEY; the slug alone identifies the file.
 
-Get the plan path for a task:
+Get the plan path for a task (KEY is auto-derived from the current branch
+when omitted; safe both for creating a new plan and reading one mid-flight):
 
 ```bash
 tasks plan [KEY] [TITLE]
 ```
 
-`<KEY>` is the identity; `<slug>` is decorative. KEY is auto-derived
-from the current branch when omitted. See **Resolution order** below
-for the lookup behavior.
+> **`_plans/` must NOT be gitignored.** The whole model here is a
+> versioned, diffable plan that ships with the PR and stays on `main` as a
+> permanent record - a `.gitignore` entry for `_plans/` defeats that. If a
+> "commit the plan file" step fails with *"paths are ignored by one of your
+> .gitignore files"*, treat it as a **repo misconfiguration**: surface it to
+> the user and offer to remove the `_plans/` line from `.gitignore` - do not
+> paper over it with `git add -f` or silently downgrade the plan to a
+> throwaway local file.
 
 ## Structure
 
@@ -45,10 +42,32 @@ One H1 (the task summary), then sections as the flow progresses:
 (1-2 sentences: what we want and why)
 
 ## Plan
-(the implementation plan - see **Plan format** below)
+
+### 1. Task Scope
+(1-2 sentences: what this task covers)
+
+### 2. Key Changes Summary
+(1-2 paragraphs of prose condensing the whole plan)
+
+### 3. Main Changes
+#### UI and UX Flows      (optional)
+#### Storage Changes      (optional)
+#### API Changes          (optional)
+
+### 4. Testing Strategy
+(3-5 lines: what gets verified, at what level)
+
+### 5. Detailed Implementation
+(the buildable detail - files, contracts, cases, diagrams)
+
+## Plan Review Findings
+(decisions taken on plan-review findings)
+
+## Code Review Findings
+(decisions taken on code-review findings)
 
 ## Tests
-(thin rollup - see **Plan format** below)
+(thin rollup - one line per test file)
 
 ## Acceptance
 (acceptance criteria)
@@ -57,8 +76,8 @@ One H1 (the task summary), then sections as the flow progresses:
 (full requirements Q&A - reference material)
 ```
 
-Additional sections are allowed; the five headings above are the
-required ones.
+The two review-findings sections are created by the review steps, and only
+when there is something to record; every other heading above is required.
 
 Reader-first ordering: the brief orients at the top, so the plan reads
 immediately after it; the full requirements are reference and sit at
@@ -67,9 +86,9 @@ the bottom.
 ## Plan format
 
 What goes inside `## Plan`, and how `## Tests` relates to it. This is
-the authoritative format spec. Testing is layered through the plan at three zoom
-levels: strategy (Key Changes Summary) → per-concern cases (Detailed
-Implementation) → rollup index (`## Tests`).
+the authoritative format spec. Testing is layered through the plan at three
+zoom levels: strategy (`4. Testing Strategy`) → per-concern cases
+(`5. Detailed Implementation`) → rollup index (`## Tests`).
 
 ### 1. Task Scope (1-2 sentences)
 
@@ -78,45 +97,65 @@ Implementation) → rollup index (`## Tests`).
 
 ### 2. Key Changes Summary
 
-- **UI changes and UX flows** - concise, high-level
-- **Code Interface & Function Changes** - description-level (e.g., "Add X parameter to Y")
-- **Shared Data Interfaces** - only if interfaces affect multiple parts of the codebase
-- **Testing strategy** - 3-5 lines: which capabilities get verified and
-  at what level (unit / integration / e2e / manual), plus anything
-  deliberately *not* tested and why. This is the top zoom level of the
-  test plan - case detail appears inline further down, not here.
+An expanded Task Scope: 1-2 paragraphs of prose that condense the entire
+plan, logic and UI together. Cover the UX flow and the UI changes, the
+architecture at event level (what happens when the user presses the button,
+and what happens next when there is no button), and the data-storage
+changes - all at a high level.
 
-### 3. Detailed Implementation
+No implementation detail here, and no bullet lists of interfaces. A reader
+who stops after this section should know what the change does and roughly
+how it works.
 
-Open with an **architecture flow** diagram when the change introduces
-multiple components that interact end-to-end. Use mermaid `flowchart`
-for static shape (components + data flow, no time axis); use
-`sequenceDiagram` when the change is itself a flow. Skip for
-single-component edits.
+### 3. Main Changes
 
+The big visible changes, one subsection per area. All subsections are
+optional: include only the ones the change actually touches, and for the
+rest add a one-line bullet directly under Main Changes ("No UI changes",
+"No storage changes").
+
+- **#### UI and UX Flows** - how the UI and the UX flows change.
+- **#### Storage Changes** - database, files, cookies, anything persisted -
+  especially what may need a migration or has long-term effects.
+- **#### API Changes** - endpoint additions, signature and contract changes.
+
+### 4. Testing Strategy
+
+3-5 lines: which capabilities get verified and at what level (unit /
+integration / e2e / manual), plus anything deliberately *not* tested and
+why. This is the top zoom level of the test plan - case detail appears
+inline in Detailed Implementation, not here.
+
+### 5. Detailed Implementation
+
+Open with an **architecture flow** `flowchart` when the change introduces
+multiple components that interact end-to-end (components + data flow, no
+time axis). Skip for single-component edits.
+
+- **Shared Data Interfaces** - the types, schemas, and payloads that cross
+  module boundaries. Include only when interfaces affect multiple parts of
+  the codebase.
 - **Code flow** - 5-10 bullets from user action → data layer → render.
-  Generic names, no full code. Replace with a `sequenceDiagram` when ≥3
-  components call each other in a specific order.
-- **Code Map** - one or two mermaid diagrams that graph the *structure of
-  the change* (build order + contracts), placed below the architecture
-  flow and just before the Files tree. They visualize what the prose in
-  Changes by concern and Interfaces & Functions holds, so they must carry
-  information those sections don't:
+  Generic names, no full code.
+- **Code Map** - optional. One mermaid diagram that graphs the *structure of
+  the change*, placed below the architecture flow and just before the Files
+  tree. Include it only when it genuinely clarifies the change, and pick
+  **one** of the two forms - never both:
     1. **Concern ladder** (`flowchart TB`) - one node per concern group,
        ordered top-to-bottom by implementation order, each edge labeled with
        *why* that order exists ("guards", "persists via", "supersedes"). Nodes
        with no incoming edge are independent tracks that build in parallel. Node
        label = its 🟢🟡🔴 marker(s) first, then the bolded concern name, then a
        few headline files on the next line - e.g.
-       `cfg["🟡 <b>Config</b><br/>.env.schema, env.d.ts"]`. Include when the
-       plan has ≥3 concern groups.
+       `cfg["🟡 <b>Config</b><br/>.env.schema, env.d.ts"]`.
     2. **Contract map** (`classDiagram`) - the new/changed public contracts
        with their key signatures, and labeled edges for which contract calls
        or is consumed by which; use `<<stereotypes>>` for add/modify/rewrite
-       status. Include when the plan introduces or reshapes ≥4 public
-       contracts. Skip for refactor- or config-only plans.
+       status.
 
-  Two rules, both learned from a failed module-dependency map:
+  Pick the ladder when build order is the hard part, the contract map when
+  the shape of the new API is. Two rules, both learned from a failed
+  module-dependency map:
     - **Every edge carries a reason a reader couldn't guess** ("guards",
       "supersedes", "runner delegates turns to"). If the only honest label
       is "imports", drop the edge.
@@ -174,17 +213,16 @@ single-component edits.
 - **Interfaces & Functions** - bullet/pseudo-code format, but full
   detail (props, key behaviors, "Displayed content") only for **new or
   changed public contracts**. Internal wiring is already covered by the
-  Code Map - don't restate it. Add a small `sequenceDiagram` when
-  several new classes/interfaces call each other and the call shape
-  isn't obvious from the bullet list.
+  Code Map - don't restate it.
 
 **Diagram rules:**
 
+- `flowchart` for static shape. Use a `sequenceDiagram` only when the call
+  shape is non-obvious from the prose - several components calling each other
+  in a specific order that a reader can't infer. Otherwise skip it.
 - ≤5 participants per `sequenceDiagram`. If more, split by phase
   (preferred when there's a natural temporal break) or abstract internal
   helpers into one participant. (The Code Map's own cap is ~12 nodes.)
-- `sequenceDiagram` for ordered call flows (≥3 components, specific
-  order). `flowchart` for static shape.
 - Orient flowcharts top-to-bottom (portrait mode) - use `flowchart TB`
   (or `TD`), not `LR`. Portrait reads better in GitHub's narrow content
   column.
@@ -216,44 +254,33 @@ group instead.
 - Use existing structures: don't create new utility files when an existing class fits
 - Purge dropped decisions: remove all references to anything decided against
 
+## Review findings sections
+
+`## Plan Review Findings` and `## Code Review Findings` are the durable
+record of what the reviews turned up and what the user decided about it.
+The review steps write **only decision-needed findings** here - findings the
+agent already fixed itself go in the chat report and never into the plan.
+
+Each section has two subsections:
+
+- `### User decisions` - one entry per finding with the decision the user
+  took: fixed as requested / rejected, with the reason / question asked,
+  with the answer.
+- `### Unhandled` - findings the user ignored or skipped past (e.g. said
+  "go to the next phase" without addressing them).
+
 ## Lifecycle
 
 - **Requirements phase** creates the file (scaffold, `## Requirements
-  Brief` up top, full `## Requirements` at the bottom).
-- **Plan phase** fills in `## Plan`, `## Tests`, `## Acceptance`.
+  Brief` up top, full `## Requirements` at the bottom). If a plan file
+  already exists for the task, update it in place.
+- **Plan phase** fills in `## Plan` (all five subsections), `## Tests`,
+  `## Acceptance`.
+- **Plan review** appends to `## Plan Review Findings`.
 - **Code phase** reads the file to drive implementation; may edit it if
   the plan changes during implementation (including recording tests
   discovered mid-implementation in their concern group + the rollup).
+- **Code review** appends to `## Code Review Findings`.
 - **Close phase** does **not** touch the file - it merges as-is.
 
 After merge, the plan stays in `_plans/` on `main` as a permanent record.
-
-## Resolution order
-
-`tasks plan` returns the first hit, falling through on miss:
-
-1. **Current worktree.** Glob `_plans/<KEY>-*.md`. If exactly one matches,
-   return it. (Multiple matches → `[[Error: ...]]`.)
-2. **Other branch.** Find a local/remote branch ending with `-<KEY>`. If
-   exactly one matches and it has a plan file, `git show` it into
-   `/tmp/plan-<KEY>-PID.md` and return that path. (Used for cross-task
-   reads, e.g. a child referencing its parent's plan.)
-3. **Generate.** Otherwise echo the canonical path the script would
-   create: `_plans/<KEY>-<slug>.md`, deriving the title from the
-   tracker if `[TITLE]` wasn't passed.
-
-**Task-less mode:** when no KEY resolves (no argument, branch doesn't
-match a key pattern), `tasks plan` falls back to `_plans/<slug>.md`,
-deriving the slug from `[TITLE]` if passed, else from the branch name.
-
-So `tasks plan <KEY>` is safe to use both when creating a new plan and
-when reading one mid-flight - no `if-exists` branching at the caller.
-
-Temporary files in `/tmp` older than an hour are cleaned up on the next
-call.
-
-## Don't put plans in issue descriptions
-
-The issue description holds the *task summary* only. The plan file is
-the source of truth - it's versioned, diffable, visible in PRs, and
-survives tracker migrations.

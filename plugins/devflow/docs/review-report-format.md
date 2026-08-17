@@ -48,6 +48,28 @@ several reviewers raised the same defect, list them together as corroboration
 (e.g. **Source.** official-anthropic-review-skill, codex). Omit the field entirely for single-reviewer
 reviews where attribution adds nothing.
 
+## Recording review outcomes in the plan
+
+The flow's review steps (`_internal-step-plan`, `_internal-step-code`) also
+record the review in the plan file. The plan entries reuse the severity tiers,
+`Q<n>` ids, and source attribution above, so a finding carries the same id in
+chat and in the plan.
+
+- **Applied findings never enter the plan.** Findings the agent fixed itself
+  (the Apply tier) appear in the chat report only.
+- **Decision-needed findings are written to the plan** before they go to the
+  user: under `## Plan Review Findings` for a plan review, `## Code Review
+  Findings` for a code review. Then present them to the user.
+- **After the user responds**, record each finding under `### User decisions`
+  with the decision taken:
+  - *fixed as requested* - then implement it;
+  - *rejected* - with the user's reason;
+  - *question* - with its answer.
+- **Findings the user ignored or skipped** (e.g. "go to the next phase" without
+  addressing them) move under `### Unhandled`.
+
+The plan must carry these decisions before the phase completes.
+
 ## Example
 
 **Applied fixes**
@@ -60,7 +82,7 @@ reviews where attribution adds nothing.
 
 **Q1 - Unindexed user lookup**
 - **Location.** [src/db.ts:88](src/db.ts:88)
-- **Source.** project, codex
+- **Source.** official-anthropic-review-skill, codex
 - **Issue.** The query runs without an index on `user_id`.
 - **Suggested change.** Add an index in the next migration.
 - **Why not applied.** Out of scope for this change; needs a migration review.

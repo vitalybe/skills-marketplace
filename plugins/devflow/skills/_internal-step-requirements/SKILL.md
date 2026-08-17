@@ -5,16 +5,15 @@ description: Gather requirements for a development task. Use when starting a new
 
 # Requirements Gathering
 
+This skill may run as a sub-agent: to ask the user anything, return the
+questions to the orchestrator and wait for answers; report completion
+explicitly when the phase is done.
+
 ## General
 
 <common-instructions>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
-
-## Start
-
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Starting requirements gathering"`
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-set <KEY> Requirements`
 
 ## Gather Requirements
 
@@ -39,11 +38,11 @@ Use the path injected in `<plan-path>` (see Environment details above).
 The plan-format reference (authoritative for the file shape) is:
 
 <plan-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/plan-formats.md`
+!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`
 </plan-format>
 
 1. If the file doesn't exist yet, create it with the scaffold shown
-   under **Structure** above (H1 + the five headings). Don't improvise
+   under **Structure** above (the H1 plus its headings). Don't improvise
    headings here.
 2. Fill in the full `## Requirements` section (bottom of the file) from
    the Q&A you just did.
@@ -55,5 +54,4 @@ The plan-format reference (authoritative for the file shape) is:
 
 1. Save the plan file edits.
 2. Commit the plan file.
-3. `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Requirements gathering complete - plan file created"`
-4. Run the `/devflow:start-flow` skill to find the next phase.
+3. Report completion: the plan file path and the commit.

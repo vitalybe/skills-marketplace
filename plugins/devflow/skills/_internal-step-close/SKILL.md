@@ -7,6 +7,10 @@ description: Close a development task by running validation and merging to main.
 
 Covers two steps: validate and merge to main.
 
+This skill may run as a sub-agent: to ask the user anything, return the
+questions to the orchestrator and wait for answers; report completion
+explicitly when the phase is done.
+
 ## General
 
 <common-instructions>
@@ -15,22 +19,16 @@ Covers two steps: validate and merge to main.
 
 ## Step: Validation
 
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Starting validation"`
-
-Run the project's full validation as specified below:
+Run the project's full validation as specified below (the project's own
+`docs/validation-procedure.md` when it has one, else the plugin fallback):
 
 <validation-procedure>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/validation-procedure.md`
+!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec docs/validation-procedure.md --fallback ${CLAUDE_PLUGIN_ROOT}/docs/validation-procedure.md`
 </validation-procedure>
 
 If errors occur, fix them and re-run until all pass. Get user approval for fixes, then `git commit`.
 
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Validation passed"`
-
 ## Step: Merge to Main
-
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Starting session close"`
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> Done`
 
 ### Detect environment
 
@@ -50,19 +48,17 @@ Read `use-pull-requests` from `<project-config>` loaded in the common instructio
 
 ### PR path
 
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Pushing branch and opening PR"`
 - Push the current branch: `git push -u origin HEAD`
 - Open a PR with `gh pr create`. **PR title MUST contain `<KEY>`** so the
   task tracker auto-links the PR. (Task-less mode: no key exists - use a
   short imperative title derived from the plan slug instead.) The body
-  should link to the plan file: `_plans/<KEY>-*.md` (task-less:
-  `_plans/<slug>.md`).
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "PR opened: <url>"`
+  should link to the plan file at the injected `<plan-path>`.
+- `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> "Pending Pull Request Review"`
+  (if the project's Jira has no such state, use `"In Review"`).
 - Stop here. The human reviewer merges on GitHub. Do not merge locally.
+- Report completion: the PR url.
 
 ### Direct merge path
-
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Merging to main"`
 
 Run the project's integration script as specified below:
 
@@ -70,5 +66,5 @@ Run the project's integration script as specified below:
 ${CLAUDE_PLUGIN_ROOT}/bin/integration-worktree-merge
 ```
 
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-set <KEY> Done`
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Merged to main"`
+- `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> Done`
+- Report completion: merged to main.

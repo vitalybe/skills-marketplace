@@ -44,12 +44,6 @@ import requests
 # Constants
 # ---------------------------------------------------------------------------
 
-PHASES = ["Requirements", "Plan", "Code", "Close", "Done"]
-# WARNING: changing LINEAR_MARKER_PREFIX silently breaks phase tracking for
-# any repo still on `task-system = "linear"` - old comments use the old prefix,
-# new writes use the new one, and flow-progress-get sees nothing.
-LINEAR_MARKER_PREFIX = "AI-Workflow: phase="
-JIRA_FIELD_NAME = "AI Workflow"
 JIRA_CONFIG = Path.home() / ".config/.jira/.config.yml"
 GLOBAL_CONFIG_FILE = Path.home() / ".config/tasks/config.toml"
 KEYCHAIN_SERVICE = os.environ.get("TASKS_KEYCHAIN_SERVICE", "jira-api-token")
@@ -164,8 +158,8 @@ def load_config() -> Config:
     if not task_system:
         task_system = "jira"
 
-    if task_system not in ("jira", "linear"):
-        die(f"unknown task-system '{task_system}' in {cfg_source} (expected 'jira' or 'linear')")
+    if task_system != "jira":
+        die(f"unknown task-system '{task_system}' in {cfg_source} (expected 'jira')")
 
     jira_site: str | None = None
     if task_system == "jira" and JIRA_CONFIG.is_file():
@@ -244,10 +238,10 @@ def require_key(key: str | None) -> str:
 
 
 def flow_soft_key(key: str | None) -> str | None:
-    """Resolve a key for flow-mutation commands (comment, set-state,
-    flow-progress-set). Unlike require_key, a missing/underivable key is not
-    fatal here: it means task-less mode (no tracked issue), so the caller
-    should note it and no-op. Returns the key, or None to signal 'skip'."""
+    """Resolve a key for flow-mutation commands (comment, set-state, plan).
+    Unlike require_key, a missing/underivable key is not fatal here: it means
+    task-less mode (no tracked issue), so the caller should note it and no-op.
+    Returns the key, or None to signal 'skip'."""
     return key or branch_key()
 
 
@@ -452,22 +446,12 @@ def _cache_fresh(path: Path, ttl_seconds: int) -> bool:
 
 
 def title_for_key(cfg: Config, key: str) -> str:
-    if cfg.task_system == "jira":
-        # REST is more reliable than parsing `jira issue view --plain`,
-        # whose pretty-printed layout doesn't carry a `Summary` label.
-        resp = cfg.jira.get(f"/rest/api/3/issue/{key}?fields=summary")
-        if not isinstance(resp, dict):
-            return ""
-        return str(resp.get("fields", {}).get("summary", "") or "")
-    # linear
-    try:
-        out = subprocess.check_output(
-            ["linear", "issues", "get", key],
-            stderr=subprocess.DEVNULL, text=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    # REST is more reliable than parsing `jira issue view --plain`,
+    # whose pretty-printed layout doesn't carry a `Summary` label.
+    resp = cfg.jira.get(f"/rest/api/3/issue/{key}?fields=summary")
+    if not isinstance(resp, dict):
         return ""
-    first = out.splitlines()[0] if out else ""
-    return re.sub(rf"^{re.escape(key)}:\s*", "", first)
+    return str(resp.get("fields", {}).get("summary", "") or "")
 
 # ---------------------------------------------------------------------------
 # Epic / parent resolution
@@ -505,14 +489,11 @@ def resolve_default_parent(cfg: Config) -> str:
 
 def cmd_show(cfg: Config, args: argparse.Namespace) -> None:
     key = require_key(args.key)
-    if cfg.task_system == "linear":
-        subprocess.run(["linear", "issues", "get", key], check=False)
-    else:
-        _print_jira_parent(cfg, key)
-        # Suppress jira-cli's verbose multi-line comment block; we render
-        # comments ourselves below in a compact one-line-each form.
-        jira_cli(cfg, ["issue", "view", key, "--plain", "--comments", "0"])
-        _print_jira_comments(cfg, key)
+    _print_jira_parent(cfg, key)
+    # Suppress jira-cli's verbose multi-line comment block; we render
+    # comments ourselves below in a compact one-line-each form.
+    jira_cli(cfg, ["issue", "view", key, "--plain", "--comments", "0"])
+    _print_jira_comments(cfg, key)
 
 
 def _print_jira_parent(cfg: Config, key: str) -> None:
@@ -745,19 +726,13 @@ def cmd_comment(cfg: Config, args: argparse.Namespace) -> None:
             die("comment: missing BODY (or use --from-file PATH)")
         body = positionals[0]
 
-    if cfg.task_system == "linear":
-        subprocess.run(
-            ["linear", "issues", "comment", key, "--body", body], check=False)
-    else:
-        jira_cli(cfg, ["issue", "comment", "add", key,
-                       "--template", "-", "--no-input"], stdin=body + "\n")
+    jira_cli(cfg, ["issue", "comment", "add", key,
+                   "--template", "-", "--no-input"], stdin=body + "\n")
 
 
 def cmd_get_description(cfg: Config, args: argparse.Namespace) -> None:
     """Print the issue's current description as markdown (for read-before-edit)."""
     key = require_key(args.key)
-    if cfg.task_system == "linear":
-        die("get-description: not yet implemented for linear backend (TBD)")
     resp = cfg.jira.get(f"/rest/api/3/issue/{key}?fields=description")
     fields = resp.get("fields", {}) if isinstance(resp, dict) else {}
     md = adf_to_markdown(fields.get("description"))
@@ -792,9 +767,6 @@ def cmd_set_description(cfg: Config, args: argparse.Namespace) -> None:
     if not body.strip():
         die("set-description: refusing to write an empty description")
 
-    if cfg.task_system == "linear":
-        die("set-description: not yet implemented for linear backend (TBD)")
-
     # jira-cli `issue edit` reads the description body from stdin under
     # --no-input and converts markdown -> ADF for free. Other fields (summary,
     # status, etc.) are left untouched.
@@ -824,11 +796,6 @@ def cmd_set_state(cfg: Config, args: argparse.Namespace) -> None:
         die("set-state: usage: tasks set-state [KEY] STATE")
     state = positionals[0]
 
-    if cfg.task_system == "linear":
-        subprocess.run(
-            ["linear", "issues", "update", key, "--state", state], check=False)
-        return
-
     target = JIRA_STATUS_MAP.get(state, state)
     r = jira_cli(cfg, ["issue", "move", key, target], capture=True)
     if r.returncode == 0:
@@ -855,85 +822,10 @@ def _jira_multi_hop_move(cfg: Config, key: str, target: str) -> None:
     die(f"could not transition {key} to '{target}' in <=2 hops")
 
 
-def cmd_flow_progress_get(cfg: Config, args: argparse.Namespace) -> None:
-    # Soft key resolution: unlike other commands, a missing/underivable key is
-    # not an error here. It just means the flow hasn't been started against a
-    # tracked issue yet, so there is no recorded phase. Echo empty - callers
-    # (e.g. start-flow) map empty to the first phase and begin fresh.
-    key = args.key or branch_key()
-    if not key:
-        return
-    if cfg.task_system == "linear":
-        _flow_progress_get_linear(key)
-    else:
-        _flow_progress_get_jira(cfg, key)
-
-
-def _flow_progress_get_linear(key: str) -> None:
-    # `linear issues comments` emits newest-first; first marker we find is current.
-    # Anchor on a leading boundary (start-of-line or whitespace) so a stray paste
-    # of the prefix inside another comment doesn't false-match.
-    try:
-        out = subprocess.check_output(
-            ["linear", "issues", "comments", key],
-            stderr=subprocess.DEVNULL, text=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return
-    marker_re = re.compile(
-        rf"(?:^|\s){re.escape(LINEAR_MARKER_PREFIX)}([A-Za-z]+)", re.MULTILINE)
-    m = marker_re.search(out)
-    if m:
-        print(m.group(1))
-
-
-def _flow_progress_get_jira(cfg: Config, key: str) -> None:
-    fid = cfg.jira.field_id(JIRA_FIELD_NAME)
-    resp = cfg.jira.get(f"/rest/api/3/issue/{key}?fields={fid}")
-    fields = resp.get("fields", {}) if isinstance(resp, dict) else {}
-    val = fields.get(fid)
-    if val is None:
-        return
-    # JIRA returns the value as either an object ({value: "Plan", ...}) or a scalar.
-    if isinstance(val, dict):
-        v = val.get("value", "")
-    else:
-        v = val
-    if v and v != "null":
-        print(v)
-
-
-def cmd_flow_progress_set(cfg: Config, args: argparse.Namespace) -> None:
-    positionals = list(args.args)
-    if positionals and is_key(positionals[0]):
-        key = positionals.pop(0)
-    else:
-        key = flow_soft_key(None)
-        if key is None:
-            log("no tracked issue (task-less mode) - skipping flow-progress-set")
-            return
-    if not positionals:
-        die("flow-progress-set: usage: tasks flow-progress-set [KEY] PHASE")
-    phase = positionals[0]
-    if phase not in PHASES:
-        die(f"flow-progress-set: unknown PHASE '{phase}' (expected one of: {' '.join(PHASES)})")
-
-    if cfg.task_system == "linear":
-        subprocess.run(["linear", "issues", "comment", key,
-                        "--body", f"{LINEAR_MARKER_PREFIX}{phase}"], check=False)
-        return
-
-    # Always go via REST: keeps `flow-progress-set` working out of the box
-    # after `jira init`, with no per-dev `~/.config/.jira/.config.yml` edit.
-    fid = cfg.jira.field_id(JIRA_FIELD_NAME)
-    cfg.jira.put(f"/rest/api/3/issue/{key}", {"fields": {fid: {"value": phase}}})
-
-
 def cmd_plan(cfg: Config, args: argparse.Namespace) -> None:
     """Resolve a plan path for KEY:
     1. If a plan file matches `_plans/<KEY>-*.md` in the current tree, echo it.
-    2. If a sibling branch ending in `-KEY` has one in git, `git show` it to
-       a tmpfile under /tmp and echo that path.
-    3. Otherwise echo the canonical path the script would create
+    2. Otherwise echo the canonical path the script would create
        (`_plans/<KEY>-<slug>.md`), using TITLE if given, else the tracker title.
     """
     if cfg.repo_root is None:
@@ -942,16 +834,19 @@ def cmd_plan(cfg: Config, args: argparse.Namespace) -> None:
     if positionals and is_key(positionals[0]):
         key = positionals.pop(0)
     else:
-        # Soft key: in task-less mode there is no KEY-based canonical path, so
-        # emit a marker (not a hard error) and let the caller derive the path.
+        # Soft key: in task-less mode there is no KEY-based canonical path.
+        # If a TITLE was given, derive a slug path from it directly; otherwise
+        # emit a marker and let the caller derive the path.
         key = flow_soft_key(None)
         if key is None:
-            print("[[No plan path resolved - task-less mode; "
-                  "derive _plans/<slug>.md yourself]]")
+            if positionals:
+                slug = slugify(positionals[0]) or "your-description-slug"
+                print(f"_plans/{slug}.md")
+            else:
+                print("[[No plan path resolved - task-less mode; "
+                      "derive _plans/<slug>.md yourself]]")
             return
     title = positionals[0] if positionals else ""
-
-    _gc_temp_plans()
 
     # 1. In current tree.
     existing = _find_existing_plan(cfg, key)
@@ -959,13 +854,7 @@ def cmd_plan(cfg: Config, args: argparse.Namespace) -> None:
         print(existing)
         return
 
-    # 2. On another branch.
-    cross = _plan_from_branch(cfg, key)
-    if cross:
-        print(cross)
-        return
-
-    # 3. Generate a canonical path.
+    # 2. Generate a canonical path.
     if not title:
         title = title_for_key(cfg, key)
     slug = slugify(title) or "your-description-slug"
@@ -984,55 +873,6 @@ def _find_existing_plan(cfg: Config, key: str) -> str | None:
         names = " ".join(str(m.relative_to(cfg.repo_root)) for m in matches)
         die(f"multiple plan files match {key}-*.md: {names}")
     return str(matches[0].relative_to(cfg.repo_root))
-
-
-def _plan_from_branch(cfg: Config, key: str) -> str | None:
-    """Look for a plan on a sibling branch ending in `-<KEY>`. Returns the
-    tmpfile path it extracted to, or None if no branch / no file matches.
-    """
-    try:
-        out = subprocess.check_output(
-            ["git", "branch", "-a", "--format=%(refname:short)"],
-            stderr=subprocess.DEVNULL, text=True, cwd=cfg.repo_root)
-    except subprocess.CalledProcessError:
-        return None
-    refs = sorted({line for line in out.splitlines() if re.search(rf"-{re.escape(key)}$", line)})
-    if not refs:
-        return None
-    unique_names = sorted({re.sub(r"^[^/]+/[^/]+/", "", r) for r in refs})
-    if len(unique_names) > 1:
-        die(f"multiple branches end with -{key}: {' '.join(unique_names)}")
-    # Prefer local ref over remote.
-    ref = next((r for r in refs if not r.startswith("remotes/")), refs[0])
-    try:
-        listing = subprocess.check_output(
-            ["git", "ls-tree", "-r", "--name-only", ref, "--", "_plans"],
-            stderr=subprocess.DEVNULL, text=True, cwd=cfg.repo_root)
-    except subprocess.CalledProcessError:
-        return None
-    rel = next((p for p in listing.splitlines()
-                if re.match(rf"^_plans/{re.escape(key)}-.*\.md$", p)), None)
-    if not rel:
-        return None
-    tmp = Path(f"/tmp/plan-{key}-{os.getpid()}.md")
-    try:
-        content = subprocess.check_output(
-            ["git", "show", f"{ref}:{rel}"], text=True, cwd=cfg.repo_root)
-    except subprocess.CalledProcessError as e:
-        die(f"git show {ref}:{rel} failed: {e}")
-    tmp.write_text(content)
-    return str(tmp)
-
-
-def _gc_temp_plans() -> None:
-    """Best-effort cleanup of plan tmpfiles older than 1h."""
-    cutoff = time.time() - 3600
-    for p in Path("/tmp").glob("plan-*-*.md"):
-        try:
-            if p.is_file() and p.stat().st_mtime < cutoff:
-                p.unlink()
-        except OSError:
-            pass
 
 
 def cmd_rest(cfg: Config, args: argparse.Namespace) -> None:
@@ -1079,8 +919,8 @@ def cmd_list(cfg: Config, args: argparse.Namespace) -> None:
         log(f"matched --parent '{parent}' -> {resolved}")
         parent = resolved
 
-    # Translate canonical Linear-style status names -> JIRA names so
-    # `--status "In Review"` works regardless of which backend you came from.
+    # Translate canonical status names -> JIRA names, e.g.
+    # `--status "In Review"` maps to JIRA's "Review".
     mapped_statuses: list[str] = []
     for s in args.status:
         if not s:
@@ -1134,9 +974,6 @@ def cmd_epics(cfg: Config, args: argparse.Namespace) -> None:
 
 
 def cmd_create(cfg: Config, args: argparse.Namespace) -> None:
-    if cfg.task_system != "jira":
-        die("create: not yet implemented for linear backend (TBD)")
-
     # 1. type allow-list
     if args.type not in VALID_ISSUE_TYPES:
         die(f"create: --type must be one of {' '.join(VALID_ISSUE_TYPES)} (got '{args.type}')")
@@ -1205,11 +1042,6 @@ def cmd_create(cfg: Config, args: argparse.Namespace) -> None:
         print(key)
 
 
-def cmd_phases(_cfg: Config | None, _args: argparse.Namespace) -> None:
-    for p in PHASES:
-        print(p)
-
-
 HELP_TEXT = """Usage: tasks <subcommand> [args]
 
 Subcommands:
@@ -1224,21 +1056,18 @@ Subcommands:
                                                 Defaults to open issues (hides Done/Cancelled), grouped by status order
                                                 (In Progress, In Review, To Do, Backlog) and newest-modified first within
                                                 each; pass --status to override the open-only filter.
-  set-state         [KEY] STATE                  Transition status (Linear-style name)
-  flow-progress-get [KEY]                       Echo current phase or empty
-  flow-progress-set [KEY] PHASE                 Advance phase (Requirements|Plan|Code|Close|Done)
-  plan              [KEY] [TITLE]               Existing plan path (tree or branch) or canonical new one
+  set-state         [KEY] STATE                  Transition status
+  plan              [KEY] [TITLE]               Existing plan path in the current tree, or canonical new one
   rest              METHOD PATH [--data JSON]   JIRA-only authenticated REST passthrough
   field-id          NAME                        JIRA-only custom-field name -> id (cached 24h)
   epics             [--refresh]                 JIRA-only: list cached epics (KEY<TAB>SUMMARY); 24h TTL
   branch-name       KEY                         Echo a slug-<KEY> branch name (uses the issue title)
-  phases                                        List canonical phase names
   help                                          This help text
 
 KEY is auto-derived from the current branch (matches [A-Z]+-[0-9]+) when omitted.
 Config: `task-system` resolved from <repo>/project-config.toml, then
-~/.config/tasks/config.toml, then defaults to "jira". Works outside any
-git repo (plan and branch-derived KEY require being in one).
+~/.config/tasks/config.toml, then defaults to "jira" (jira-only). Works
+outside any git repo (plan and branch-derived KEY require being in one).
 Auth: JIRA_API_TOKEN from env, else macOS keychain
 (`security add-generic-password -s jira-api-token -a $USER -w '<TOKEN>'`).
 Errors go to stdout: colored on a TTY, `[[Error: ...]]` marker form when captured.
@@ -1298,12 +1127,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_set = sub.add_parser("set-state", add_help=False)
     p_set.add_argument("args", nargs="*")
 
-    p_fpg = sub.add_parser("flow-progress-get", add_help=False)
-    p_fpg.add_argument("key", nargs="?")
-
-    p_fps = sub.add_parser("flow-progress-set", add_help=False)
-    p_fps.add_argument("args", nargs="*")
-
     p_plan = sub.add_parser("plan", add_help=False)
     p_plan.add_argument("args", nargs="*")
 
@@ -1322,7 +1145,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_branch = sub.add_parser("branch-name", add_help=False)
     p_branch.add_argument("key", nargs="?")
 
-    sub.add_parser("phases", add_help=False)
     sub.add_parser("help", add_help=False)
     sub.add_parser("-h", add_help=False)
     sub.add_parser("--help", add_help=False)
@@ -1338,8 +1160,6 @@ HANDLERS: dict[str, Any] = {
     "create": cmd_create,
     "list": cmd_list,
     "set-state": cmd_set_state,
-    "flow-progress-get": cmd_flow_progress_get,
-    "flow-progress-set": cmd_flow_progress_set,
     "plan": cmd_plan,
     "rest": cmd_rest,
     "field-id": cmd_field_id,
@@ -1354,11 +1174,7 @@ def main(argv: list[str]) -> None:
         sys.exit(1)
 
     sub = argv[0]
-    # phases / help don't need config or a git repo.
-    if sub == "phases":
-        for p in PHASES:
-            print(p)
-        return
+    # help doesn't need config or a git repo.
     if sub in ("help", "-h", "--help"):
         cmd_help()
         return

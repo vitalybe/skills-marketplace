@@ -17,8 +17,9 @@ fixes and renders the report; this skill only produces the findings.
   past the branch's fork point doesn't fold sibling commits into the diff - plain
   `git diff origin/main` is wrong when local `main` is ahead of the branch base);
   for `plan`, the plan file path.
-- **Plan path** (optional, `code` only) — enables the `project` reviewer's
-  plan↔code drift check (both directions: more shipped than planned, less).
+- **Plan path** (optional, `code` only) - enables the
+  `official-anthropic-review-skill` lane's plan↔code drift check (both
+  directions: more shipped than planned, less).
 - **Focus areas** (optional) — extra emphasis passed through to the reviewers.
 
 ## Context
@@ -34,10 +35,6 @@ fixes and renders the report; this skill only produces the findings.
 <doctor>
 !`${CLAUDE_PLUGIN_ROOT}/bin/doctor 2>&1 || true`
 </doctor>
-
-<developer-guidelines>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/developer-guidelines.md`
-</developer-guidelines>
 
 ## Process
 
@@ -64,10 +61,12 @@ passed.
 In a **single message**, dispatch every selected reviewer per its "how to run"
 entry in the roster:
 
-- The built-in lanes (`project`, `plan`) — do this analysis yourself. `project`
-  uses the developer-guidelines above (and the plan path, if given, for drift);
-  `plan` uses the plan-quality rubric.
-- Sub-agent lanes (`official-anthropic-review-skill`, `ponytail`, `codex`) — spawn one sub-agent each.
+- The built-in lane (`plan`) - do this analysis yourself, against
+  `${CLAUDE_PLUGIN_ROOT}/docs/plan-guidelines.md`.
+- Sub-agent lanes (`official-anthropic-review-skill`, `ponytail`, `codex`) -
+  spawn one sub-agent each, prompted exactly as its roster entry says (the
+  sub-agent reads whatever files that entry names). Pass the plan path through
+  when one was given.
 - `fallow` — run the CLI directly (no sub-agent) and parse its diagnostics.
 
 Wait for all lanes to return.

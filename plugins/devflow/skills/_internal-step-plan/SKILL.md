@@ -5,15 +5,15 @@ description: Create and review an implementation plan for a development task. Us
 
 # Plan Creation & Review
 
+This skill may run as a sub-agent: to ask the user anything, return the
+questions to the orchestrator and wait for answers; report completion
+explicitly when the phase is done.
+
 ## General
 
 <common-instructions>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
-
-## Start
-
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-set <KEY> Plan`
 
 ## Step: Locate the Plan File
 
@@ -34,47 +34,50 @@ Do NOT skip this step or only read generic pattern docs. The architecture docs c
 
 ## Step: Explore the Codebase
 
-Use the code-explorer agent to understand the current state of relevant code.
+Use the Explore agent to understand the current state of relevant code.
 
 ## Step: Draft the Plan
 
 The plan-format reference (authoritative) is:
 
 <plan-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/plan-formats.md`
+!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`
 </plan-format>
 
 What goes inside `## Plan`, and how `## Tests` relates to it, is
 specified above under **Plan format**. Follow it exactly; it is
 authoritative. Don't improvise structure here.
 
+Read `${CLAUDE_PLUGIN_ROOT}/docs/plan-guidelines.md` and draft against
+that rubric - it's what the plan review judges the draft by.
+
 Once the initial draft is written, save and commit the plan file.
 
 ## Step: Review
 
+### 1. Run the review
+
 Invoke `/devflow:_internal-review-aggregator` with:
 
-- **Artifact** — `plan`.
-- **Scope** — the plan file path.
-- **Context** — task requirements/goals and relevant context (parent task,
+- **Artifact** - `plan`.
+- **Scope** - the plan file path.
+- **Context** - task requirements/goals and relevant context (parent task,
   referenced docs) so the reviewers can judge completeness.
 
-It resolves the plan roster (the built-in `plan` reviewer, plus `ponytail` and
-`codex` when enabled and available), runs them in parallel, and returns one
-triaged, source-tagged findings list (Apply / Decision needed) plus any
-reviewer skip notes.
+It resolves the plan roster (see `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`),
+runs the lanes in parallel, and returns one triaged, source-tagged findings list
+(Apply / Decision needed) plus any reviewer skip notes.
 
-For each **Apply** item, edit the plan file. Don't apply edits you don't
-understand - leave those as Decision-needed and surface them. Save and commit
-when all "Apply" edits are in (single commit is fine — the plan is one file).
+### 2. Apply the Apply tier
 
-Then `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Plan review completed"`.
+Edit the plan file for each **Apply** item. Don't apply edits you don't
+understand - move those to Decision needed instead. Commit when all Apply edits
+are in (a single commit is fine - the plan is one file).
 
-### Report to the user
+### 3. Write the decision-needed findings into the plan
 
-Render the aggregator's findings using the shared report format - Apply items as
-the brief one-line-each mention, then the **Decision needed** items as the
-severity breakdown. Mention any reviewer skip notes.
+Record the **Decision needed** findings in the plan's `## Plan Review Findings`
+section, then commit the plan file.
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
@@ -82,22 +85,27 @@ severity breakdown. Mention any reviewer skip notes.
 
 ## Step: User Review
 
-Present the plan to the user (only after the plan file is saved and both outputs above are emitted):
+Present to the user (only after the plan file is saved):
 
-- Path to the plan file: `_plans/<KEY>-*.md`
-- Reference to the two outputs above (don't restate them — they're already in the transcript).
+- The plan file path as injected in `<plan-path>`.
+- The report per the shared format above - Apply items as the brief
+  one-line-each mention, then the **Decision needed** items as the severity
+  breakdown, plus any reviewer skip notes.
 
-Request the user to approve the plan, or pick from the Decision needed list what to apply.
+Ask the user to approve the plan, or to say what to do about each Decision-needed
+finding. This skill runs as a sub-agent: return the report and the questions to
+the orchestrator and wait for the user's answers.
 
-If changes are requested:
+## Step: Record the Review Decisions
 
-- Update the plan file.
-- Commit the plan file.
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Plan updated after user review: <reason>"`
+Once the answers are in, record each finding's outcome in the plan per the
+**Recording review outcomes in the plan** procedure in the report format above:
+implement the fixes the user asked for, note rejections with their reason and
+questions with their answer, and move anything the user ignored to
+`### Unhandled`. Commit the plan file. This phase does not complete until the
+plan carries all of it.
 
 ## Wrap Up
 
-1. Make sure the plan file reflects the final approved plan (commit any pending edits).
-2. `${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-set <KEY> Code`
-3. `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Plan creation complete - user approved"`
-4. Run the `/devflow:start-flow` skill to find the next phase.
+1. Make sure the plan file reflects the final approved plan and the recorded review decisions (commit any pending edits).
+2. Report completion: the plan file path and the commit.

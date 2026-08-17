@@ -8,7 +8,8 @@ Invoked as `/devflow:<name>`.
 
 | Skill | Role |
 |---|---|
-| `start-flow` | Orchestrator entry point. Runs a dependency preflight, reads the current phase, and launches the next step. **Start here.** |
+| `start-flow` | Orchestrator entry point. Runs a dependency preflight, then runs each outstanding phase in its own sub-agent and relays their questions to you. **Start here.** |
+| `_internal-step-phase-mapping` | Triage - picks the flow (fast path / full) and returns the phases still to run. |
 | `_internal-step-requirements` | Phase 1 - gather requirements, write the plan file. |
 | `_internal-step-plan` | Phase 2 - draft and review the implementation plan. |
 | `_internal-step-code` | Phase 3 - implement, test, code review. |

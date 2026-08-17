@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Reviews a GitHub pull request against its plan file, inside a worktree, using the shared review roster. Use whenever the user asks to "review PR #N", "code-review PR #N", "do a PR review on #N", "look over PR #N", or names a specific PR number with review intent. Performs the full ritual - checkout, rebase, plan lookup, review via the aggregator (project/official-anthropic-review-skill/fallow/ponytail/codex), fix-and-commit for obvious findings, then a structured report. Always use this skill when a specific PR number is mentioned with review intent; don't do PR reviews ad-hoc.
+description: Reviews a GitHub pull request against its plan file, inside a worktree, using the shared review roster. Use whenever the user asks to "review PR #N", "code-review PR #N", "do a PR review on #N", "look over PR #N", or names a specific PR number with review intent. Performs the full ritual - checkout, rebase, plan lookup, review via the aggregator's reviewer roster, fix-and-commit for obvious findings, then a structured report. Always use this skill when a specific PR number is mentioned with review intent; don't do PR reviews ad-hoc.
 ---
 
 # PR Review
@@ -60,9 +60,8 @@ stay with the user.
 Invoke `/devflow:_internal-review-aggregator` with:
 
 - **Artifact** — `code`.
-- **Scope** — the PR's changes, diffed against the merge-base of the branch and
-  `origin/main` (not `origin/main`'s tip - if it has advanced past the branch
-  point, diffing its tip pulls in unrelated commits):
+- **Scope** - the PR's changes, diffed against the merge-base (not
+  `origin/main`'s tip - the aggregator explains why):
   ```bash
   git diff "$(git merge-base origin/main HEAD)"
   ```
@@ -71,9 +70,10 @@ Invoke `/devflow:_internal-review-aggregator` with:
 - **Focus areas** — anything the user passed, plus diff-stat areas of interest
   (new dirs, scope-creep files, files outside the plan).
 
-It resolves the code roster and returns one triaged, source-tagged findings list
-(Apply / Decision needed), the plan↔code deltas, and any reviewer skip notes.
-While it runs, read the plan and diff stat yourself for the report tables.
+It resolves the code roster (see `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`)
+and returns one triaged, source-tagged findings list (Apply / Decision needed),
+the plan↔code deltas, and any reviewer skip notes. While it runs, read the plan
+and diff stat yourself for the report tables.
 
 ## Phase 3: Fix obvious findings
 
@@ -93,7 +93,9 @@ tests, scope, and architecture for the report.
 
 ## Phase 4: Report
 
-Present these sections, in order, using the shared report format:
+Present these sections, in order, using the shared report format. Everything goes
+to chat - this skill does not record findings in the plan file (that's the flow's
+review steps):
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`

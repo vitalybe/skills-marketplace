@@ -11,13 +11,12 @@ report.
 ## Phase 1: Review
 
 Invoke `/devflow:_internal-review-aggregator` with **Artifact** = `code`, **Scope**
-= `git diff "$(git merge-base origin/main HEAD)" HEAD` (the merge-base form, so a
-`main` that has advanced past this branch's fork point doesn't pull sibling
-commits into the diff), plus any focus areas the user gave (and a plan path if
-one is in play). It resolves the code roster (`project` + `official-anthropic-review-skill` always, plus
-`fallow`, `ponytail`, `codex` when enabled and available), runs them in parallel,
-and returns one triaged, source-tagged findings list — **Apply** vs **Decision
-needed** — with any reviewer skip notes.
+= `git diff "$(git merge-base origin/main HEAD)" HEAD` (the merge-base form, not
+`git diff origin/main` - the aggregator explains why), plus any focus areas the
+user gave (and a plan path if one is in play). It resolves the code roster (see
+`${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`), runs the lanes in parallel, and
+returns one triaged, source-tagged findings list - **Apply** vs **Decision
+needed** - with any reviewer skip notes.
 
 While it runs, skim `git diff "$(git merge-base origin/main HEAD)" --stat` yourself for the summary.
 
@@ -36,7 +35,8 @@ Leave subjective design, missing tests, scope, and architecture for the report.
 
 ## Phase 3: Report
 
-Present using the shared report format:
+Present using the shared report format. Everything goes to chat - this skill does
+not record findings in a plan file (that's the flow's review steps):
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`

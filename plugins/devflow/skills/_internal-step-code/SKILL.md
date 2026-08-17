@@ -5,16 +5,15 @@ description: Implement the plan for a development task, run tests, and do a code
 
 # Implementation & Code Review
 
+This skill may run as a sub-agent: to ask the user anything, return the
+questions to the orchestrator and wait for answers; report completion
+explicitly when the phase is done.
+
 ## General
 
 <common-instructions>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
-
-## Start
-
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Starting implementation"`
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-set <KEY> Code`
 
 ## Step: Read the Plan
 
@@ -61,7 +60,6 @@ Review what changed in this task:
 Run `/devflow:docs-update` with the list of changes to guide the documentation update.
 
 - Git commit the documentation changes.
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Documentation update complete"`
 
 ## Step: Code Review
 
@@ -71,21 +69,17 @@ Run the review roster via the aggregator, then apply and report.
 
 Invoke `/devflow:_internal-review-aggregator` with:
 
-- **Artifact** — `code`.
-- **Scope** — the branch's own changes since it forked, via the
-  merge-base: `git diff "$(git merge-base origin/main HEAD)" HEAD`. Do
-  **not** use plain `git diff origin/main` / `git diff main` here - when
-  local `main` has advanced past this branch's fork point (e.g. sibling
-  tasks merged locally while this one ran in a worktree), a two-dot diff
-  reports their files as phantom additions/deletions and the review
-  targets the wrong file set.
-- **Plan path** — the plan file, so the `project` reviewer can check
-  plan↔implementation drift.
+- **Artifact** - `code`.
+- **Scope** - the branch's own changes since it forked:
+  `git diff "$(git merge-base origin/main HEAD)" HEAD`. Not plain
+  `git diff origin/main` / `git diff main` - the aggregator explains why.
+- **Plan path** - the plan file, so the `official-anthropic-review-skill` lane
+  can check plan↔implementation drift.
 
-It resolves the code roster (`project` + `official-anthropic-review-skill` always, plus `fallow`,
-`ponytail`, and `codex` when enabled and available), runs the reviewers in
-parallel, dedups across them, and returns one triaged, source-tagged findings
-list (Apply / Decision needed) plus any reviewer skip notes.
+It resolves the code roster (see `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`),
+runs the lanes in parallel, dedups across them, and returns one triaged,
+source-tagged findings list (Apply / Decision needed) plus any reviewer skip
+notes.
 
 Don't fix things you don't understand. When in doubt, leave it for the user to decide and surface it.
 
@@ -94,25 +88,26 @@ Don't fix things you don't understand. When in doubt, leave it for the user to d
 For each **Apply** item:
 
 1. Make the change.
-2. Re-run any cheap local validators relevant to the change (e.g. `docker compose config -q`, `pnpm test --filter <pkg>`, `tsc --noEmit`) — not the full smoke suite, just what the touched file warrants.
+2. Re-run any cheap local validators relevant to the change (e.g. `docker compose config -q`, `pnpm test --filter <pkg>`, `tsc --noEmit`) - not the full smoke suite, just what the touched file warrants.
 3. `git commit` that fix alone. Commit message: short imperative summary referencing the finding (e.g. `fix(server): drop trailing slash on grafana proxy_pass`). Include the `Co-Authored-By` trailer per the global commit convention. For any multi-line message, write it to a temp file first (`/tmp/claude-<epoch-millis>.md`, a unique name to avoid colliding with a stale file) and `git commit -F` it - don't pass it via heredoc/`printf`/`echo`.
 
-Do NOT batch multiple fixes into one commit — each fix should be reviewable and revertable in isolation.
+Do NOT batch multiple fixes into one commit - each fix should be reviewable and revertable in isolation.
 
-### 3. Report to the user
+### 3. Write the decision-needed findings into the plan
 
-Report using the shared format — applied fixes as the brief one-line-each
-mention, then the **Decision needed** findings as the severity breakdown (with
-`source` tags), and mention any reviewer skip notes:
+Record the **Decision needed** findings in the plan's `## Code Review Findings`
+section, and update the plan itself if a finding changed it. Commit the plan file
+(separate commit).
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
 </report-format>
 
-### 4. Close the review
+### 4. Report to the user
 
-- `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Code review completed"`
-- If findings changed the plan, update the plan file and commit it (separate commit).
+Report using the shared format above - applied fixes as the brief one-line-each
+mention, then the **Decision needed** findings as the severity breakdown (with
+`source` tags), and mention any reviewer skip notes.
 
 ## Step: User Review
 
@@ -132,16 +127,25 @@ Present to the user:
   - The finding and how it was addressed (applied or disagreed - and why)
   - A short code snippet showing the problem and how the fix changes it (before/after)
 
-Use `AskUserQuestion` with header "User review" to ask: "Are you happy with the implementation? Review the changes and let me know."
+Ask: "Are you happy with the implementation? Approve, or tell me what to change -
+including what to do about each Decision-needed finding." This skill runs as a
+sub-agent: return the report and the questions to the orchestrator and wait for
+the user's answers.
 
-- Options: "Approve" / "Needs changes"
+If changes are wanted: apply them, re-commit, and ask again.
 
-If "Needs changes": discuss, apply, re-commit, and ask again.
+**Gate:** Do NOT proceed until the user approves.
 
-**Gate:** Do NOT proceed until the user selects "Approve".
+## Step: Record the Review Decisions
+
+Once the answers are in, record each finding's outcome in the plan's
+`## Code Review Findings` section per the **Recording review outcomes in the
+plan** procedure in the report format above: implement the fixes the user asked
+for, note rejections with their reason and questions with their answer, and move
+anything the user ignored to `### Unhandled`. Commit the plan file. This phase
+does not complete until the plan carries all of it.
 
 ## Wrap Up
 
-1. `${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-set <KEY> Done`
-2. `${CLAUDE_PLUGIN_ROOT}/bin/tasks comment <KEY> "Implementation complete - user approved"`
-3. Run the `/devflow:start-flow` skill to find the next phase.
+1. Make sure every change is committed, the plan file included.
+2. Report completion: what was built, the commits, and the plan file path.

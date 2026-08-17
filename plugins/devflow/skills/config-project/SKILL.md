@@ -38,11 +38,11 @@ no other backend is supported.
 not ask for it on a normal missing-key pass - leaving it unset means all roster
 reviewers run.
 
-Controls which reviewers the review roster drops (see `docs/review-roster.md`).
-It's a single list applied to whichever phase a reviewer participates in. Valid
-ids: `project`, `plan`, `official-anthropic-review-skill`, `fallow`, `ponytail`, `codex`. Default (unset)
-= exclude nothing; reviewers whose dependencies are missing are skipped
-automatically regardless.
+Controls which of the optional reviewers the review roster drops (see
+`docs/review-roster.md`). It's a single list applied to whichever phase a
+reviewer participates in. Valid ids: `fallow`, `ponytail`, `codex` - the baseline
+lanes are not excludable. Default (unset) = exclude nothing; reviewers whose
+dependencies are missing are skipped automatically regardless.
 
 ### (future keys go here — add new sections as needed)
 

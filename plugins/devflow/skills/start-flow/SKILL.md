@@ -1,11 +1,13 @@
 ---
 name: start-flow
-description: Invoke to find the next phase in the devflow workflow.
+description: Runs the devflow workflow end to end - works out which phases the task needs, runs each phase in its own sub-agent, and relays their questions to the user. Invoke to start or resume a dev task flow.
 ---
 
 # Dev Task Orchestrator
 
-Runs all devflow phases in sequence by launching each one.
+Thin orchestrator. It decides nothing about the work itself: it works out
+which phases still need to run, runs each one in its own sub-agent, and
+carries messages between those sub-agents and the user.
 
 ## Preflight: Dependencies
 
@@ -17,13 +19,8 @@ If any dependency is reported `MISS`, stop and tell the user what to
 install (using the hint shown) before starting the flow - the phases
 call these tools and will fail without them.
 
-**Exception - the task-tracker deps (`jira` / JIRA token) are only
-blocking in task mode.** If this run is task-less (no tracker key in the
-branch/worktree name and the user didn't name a Jira issue - see
-task-mode detection in the common instructions below), a `MISS` on
-jira/JIRA-token is expected and harmless: those tools are never called.
-Don't stop or ask the user to install them; proceed. Only a `MISS` on a
-dep the flow actually uses in this mode is blocking.
+Exception: in task-less mode a `MISS` on `jira` / the JIRA token is
+harmless (those tools are never called) - proceed.
 
 ## General
 
@@ -31,60 +28,56 @@ dep the flow actually uses in this mode is blocking.
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
 
-## Phase Sequence
+## Step: Work out the phases
 
-The phases are:
+Spawn `/devflow:_internal-step-phase-mapping` in a sub-agent (model:
+opus), passing the user's request verbatim. It inspects the plan file and
+the request, and returns the chosen flow (fast path or full flow), the
+ordered phases still to run, and one line of reasoning.
 
-- `/devflow:_internal-step-requirements` - Gather requirements for a development task.
-- `/devflow:_internal-step-plan` - Create and review an implementation plan.
-- `/devflow:_internal-step-code` - Implement the plan, run tests, and review code.
-- `/devflow:_internal-step-close` - Close the task by running validation and merging.
+If it returns no phases, report that to the user and stop.
 
-## Step: Read Current Phase
+## Step: Record the phases as tasks
 
-<current-phase>
-!`${CLAUDE_PLUGIN_ROOT}/bin/tasks flow-progress-get`
-</current-phase>
+Record each returned phase as a Claude Code task, in order. Mark a task
+complete only when that phase's sub-agent reports the phase done.
 
-Map the phase to the next skill:
+## Step: Run each phase
 
-| `<current-phase>` | Next skill                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------- |
-| _empty_           | **Triage first** (see below); take the fast path, or start `/devflow:_internal-step-requirements` |
-| `Requirements`    | `/devflow:_internal-step-plan`                                                                    |
-| `Plan`            | `/devflow:_internal-step-code`                                                                    |
-| `Code`            | `/devflow:_internal-step-close`                                                                   |
-| `Done`            | task is closed - stop and consult the user                                                        |
+Run the phases one at a time, in the returned order, each in its own
+sub-agent. Pass it the user's request verbatim plus the phase-mapping
+reasoning.
 
-Run the next skill. If the output of `flow-progress-get` doesn't match
-any of the rows above (e.g. a typo or stale marker), stop and consult
-the user.
+| Phase          | Skill                                  | Model  |
+| -------------- | -------------------------------------- | ------ |
+| `requirements` | `/devflow:_internal-step-requirements` | opus   |
+| `plan`         | `/devflow:_internal-step-plan`          | opus   |
+| `code`         | `/devflow:_internal-step-code`          | opus   |
+| `close`        | `/devflow:_internal-step-close`         | sonnet |
 
-## Step: Triage the task (fresh flow only)
+(This phase-to-model mapping may change.)
 
-Run this **once**, only when `<current-phase>` above is empty (a brand-new
-task). On any later re-entry (a phase is already set), skip triage entirely and
-use the phase map.
+Mark the phase's task complete, then start the next phase's sub-agent. If
+a phase reports failure or that it is blocked, stop, mark nothing
+complete, and report to the user.
 
-Assess the task's scope:
+When the last phase is done, report what the phases produced (plan path,
+commits, PR url).
 
-- **Fast path** - the change is small and self-contained, with no meaningful
-  design decision and no cross-cutting risk: a UI-only tweak, a single script, a
-  skill/doc edit, a localized bug fix, a copy change.
-- **Full flow** - anything larger or feature-shaped: several files, a new
-  component with tests, a product/design/security decision, or a cross-cutting or
-  risky change.
-- **When unsure, choose the full flow.**
+### Relaying user interaction
 
-**Override.** If the invoker explicitly asked for a route - "fast path" /
-"simple", or "full flow" / "run all the phases" - honor that and skip the
-assessment.
+Phase sub-agents cannot talk to the user. When a phase needs input -
+requirements Q&A, a review decision, an approval gate - it ends its turn
+and returns the questions or report to you. Then:
 
-**If fast path:** implement the change directly (match existing style), run the
-project's checks/tests, and commit per the flow's commit conventions - do NOT
-walk the four phases or run the formal review gate. Then stop and report. Leave
-integration (PR / merge) to the same policy the close phase would apply; do not
-merge or open a PR on your own initiative.
+1. Relay it to the user **verbatim**: `AskUserQuestion` where the choice
+   is closed (approve / needs changes, pick findings to apply), free-form
+   otherwise. Never answer on the user's behalf and never summarize a
+   question away.
+2. Send the answers back to the **same** sub-agent with `SendMessage`, so
+   it continues where it left off - do not spawn a fresh one.
+3. Repeat until that sub-agent explicitly reports the phase complete.
 
-**If full flow:** proceed to `/devflow:_internal-step-requirements` and continue
-through the phase map as normal.
+A phase is done only when its sub-agent says it is done. If a sub-agent
+ends its turn with neither questions nor a completion report, ask it
+(`SendMessage`) instead of assuming either.
