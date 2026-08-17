@@ -67,9 +67,6 @@ tasks rest METHOD PATH [--data JSON | --data-file PATH]
 tasks field-id "Field Name"                       # custom-field id resolver (24h cache)
 tasks branch-name KEY                             # echo `slug-KEY` for branch naming
 tasks plan KEY [TITLE]                            # plan file path (repo-only)
-tasks flow-progress-get [KEY]                     # current devflow flow phase
-tasks flow-progress-set [KEY] PHASE               # set devflow flow phase
-tasks phases                                      # list canonical phase names
 tasks help
 ```
 
