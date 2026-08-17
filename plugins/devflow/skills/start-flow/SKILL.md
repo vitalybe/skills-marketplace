@@ -32,10 +32,14 @@ harmless (those tools are never called) - proceed.
 
 Spawn `/devflow:_internal-step-phase-mapping` in a sub-agent (model:
 opus), passing the user's request verbatim. It inspects the plan file and
-the request, and returns the chosen flow (fast path or full flow), the
-ordered phases still to run, and one line of reasoning.
+the request, and returns the chosen flow, one line of reasoning, and one
+`phase:` line per phase still to run - each naming the phase, the skill
+that runs it, and the model to run it on.
 
-If it returns no phases, report that to the user and stop.
+The mapping owns all of that: take the phases, skills and models exactly
+as returned and do not substitute your own.
+
+If it returns `phases: none`, report that to the user and stop.
 
 ## Step: Record the phases as tasks
 
@@ -45,17 +49,9 @@ complete only when that phase's sub-agent reports the phase done.
 ## Step: Run each phase
 
 Run the phases one at a time, in the returned order, each in its own
-sub-agent. Pass it the user's request verbatim plus the phase-mapping
-reasoning.
-
-| Phase          | Skill                                  | Model  |
-| -------------- | -------------------------------------- | ------ |
-| `requirements` | `/devflow:_internal-step-requirements` | opus   |
-| `plan`         | `/devflow:_internal-step-plan`          | opus   |
-| `code`         | `/devflow:_internal-step-code`          | opus   |
-| `close`        | `/devflow:_internal-step-close`         | sonnet |
-
-(This phase-to-model mapping may change.)
+sub-agent: invoke the skill the mapping gave for that phase, on the model
+the mapping gave for that phase. Pass it the user's request verbatim plus
+the phase-mapping reasoning.
 
 Mark the phase's task complete, then start the next phase's sub-agent. If
 a phase reports failure or that it is blocked, stop, mark nothing

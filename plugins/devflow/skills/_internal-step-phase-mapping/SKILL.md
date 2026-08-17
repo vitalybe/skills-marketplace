@@ -18,19 +18,36 @@ the orchestrator.
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
 
+## The phases
+
+The canonical phase definitions - the phase name, the skill that runs it,
+and the model it runs on:
+
+| Phase          | Skill                                  | Model  |
+| -------------- | -------------------------------------- | ------ |
+| `requirements` | `/devflow:_internal-step-requirements` | opus   |
+| `plan`         | `/devflow:_internal-step-plan`          | opus   |
+| `code`         | `/devflow:_internal-step-code`          | opus   |
+| `close`        | `/devflow:_internal-step-close`         | sonnet |
+
+(This phase-to-model mapping may change.)
+
+Which phases each flow includes, in run order:
+
+- **fast**: `requirements`, `code`
+- **full**: `requirements`, `plan`, `code`, `close`
+
 ## Step: Pick the flow
 
 Assess the scope of the work:
 
 - **Fast path** - small and self-contained, no meaningful design decision
   and no cross-cutting risk: a UI-only tweak, a single script, a skill/doc
-  edit, a localized bug fix, a copy change. Phases: `requirements, code`.
-  Requirements may be a quick confirmation; the plan phase is skipped
-  entirely.
+  edit, a localized bug fix, a copy change. Requirements may be a quick
+  confirmation; the plan phase is skipped entirely.
 - **Full flow** - anything larger or feature-shaped: several files, a new
   component with tests, a product/design/security decision, or a
-  cross-cutting or risky change. Phases:
-  `requirements, plan, code, close`.
+  cross-cutting or risky change.
 - **When unsure, choose the full flow.**
 
 **Override.** If the request explicitly asks for a route - "fast path" /
@@ -60,6 +77,21 @@ Return exactly this to the orchestrator, nothing else:
 
 ```
 flow: fast | full
-phases: <ordered comma-separated remaining phases, or "none">
 why: <one line - what you inferred and why this flow>
+phase: <name> <skill> (<model>)
+phase: <name> <skill> (<model>)
+```
+
+One `phase:` line per remaining phase, in run order, with the skill and
+model taken verbatim from the phase table. If nothing is left to run, emit
+`phases: none` in place of the `phase:` lines.
+
+Example:
+
+```
+flow: full
+why: plan file has requirements only, so plan onward is pending
+phase: plan /devflow:_internal-step-plan (opus)
+phase: code /devflow:_internal-step-code (opus)
+phase: close /devflow:_internal-step-close (sonnet)
 ```
