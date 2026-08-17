@@ -5,9 +5,8 @@ description: Implement the plan for a development task, run tests, and do a code
 
 # Implementation & Code Review
 
-This skill may run as a sub-agent: to ask the user anything, return the
-questions to the orchestrator and wait for answers; report completion
-explicitly when the phase is done.
+User input goes through gates - see **Gates** in the common instructions
+below.
 
 ## General
 
@@ -21,6 +20,11 @@ Read the full plan from the path injected in `<plan-path>` (see
 Environment details above). If implementation reveals the plan needs
 adjustment, edit that file (not the issue description), re-confirm
 with the user, then commit the plan file.
+
+**Resume:** the plan's `## Code Review Findings` says where to re-enter.
+Findings with no decision recorded - go to **Step: User Review** and present
+them. Decisions recorded but not carried out - implement them, then continue
+from there.
 
 ## Step: Implement
 
@@ -128,9 +132,13 @@ Present to the user:
   - A short code snippet showing the problem and how the fix changes it (before/after)
 
 Ask: "Are you happy with the implementation? Approve, or tell me what to change -
-including what to do about each Decision-needed finding." This skill runs as a
-sub-agent: return the report and the questions to the orchestrator and wait for
-the user's answers.
+including what to do about each Decision-needed finding", keyed by each
+finding's `Q<n>` id.
+
+End the gate turn with the diff overview, the before/after findings, and that
+approval question as the package - it is presented as written, so word it for
+the user. Writing the decision-needed findings into `## Code Review Findings`
+in the step above is this gate's flush.
 
 If changes are wanted: apply them, re-commit, and ask again.
 

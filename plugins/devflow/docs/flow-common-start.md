@@ -41,6 +41,23 @@ chars) - and use that exactly as you would the injected path.
 
 Plan file shape: `${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`.
 
+## Gates
+
+A gate is any point where the phase needs user input or approval.
+
+Before ending a gate turn, flush state to the plan file: findings, the
+answers received so far, anything a fresh agent needs to continue from the
+plan alone.
+
+End the turn with a user-ready package: the exact report text to present,
+worded so it needs no rewording, plus the questions enumerated with stable
+ids (`Q1`, `Q2`, ...), each carrying closed options where a choice fits.
+Answers come back keyed by those ids; continue from them. Running inline
+rather than as a sub-agent, present that same package yourself.
+
+Report phase completion explicitly. A turn that ends with neither a gate
+package nor a completion report is an error.
+
 ## Talking to the task tracker
 
 All tracker access goes through `${CLAUDE_PLUGIN_ROOT}/bin/tasks` - never

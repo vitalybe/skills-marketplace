@@ -5,9 +5,8 @@ description: Gather requirements for a development task. Use when starting a new
 
 # Requirements Gathering
 
-This skill may run as a sub-agent: to ask the user anything, return the
-questions to the orchestrator and wait for answers; report completion
-explicitly when the phase is done.
+User input goes through gates - see **Gates** in the common instructions
+below.
 
 ## General
 
@@ -31,6 +30,12 @@ For sub-tasks of a parent issue:
 - If anything conflicts with the parent, confirm with the user
 
 **Key principle**: Don't assume - ask when unclear. Present all questions together in one organized list. Continue until all are answered.
+
+Give each question a stable `Q<n>` id and keep the ids across rounds. As each
+round of answers lands, write it into the plan file's `## Requirements`
+(creating the file per **Step: Write the Plan File** below if it isn't there
+yet) and save - so a respawned agent picks the interview up from the plan.
+Commit at wrap-up.
 
 ## Step: Write the Plan File
 

@@ -5,9 +5,8 @@ description: Design the UX/UI for a development task in Claude Design. Use when 
 
 # UX/UI Design
 
-This skill may run as a sub-agent: to ask the user anything, return the
-questions to the orchestrator and wait for answers; report completion
-explicitly when the phase is done.
+User input goes through gates - see **Gates** in the common instructions
+below.
 
 ## General
 
@@ -30,9 +29,12 @@ and never open it in a browser.
 The target is a claude.ai/design project or file link, taken from the
 user's request or from the plan's `## Design` section.
 
-If no link is known, **stop** and return one question to the orchestrator:
+If no link is known, **stop** and end the gate turn with one question, `Q1`:
 ask the user for the Claude Design project or file link to create or update
 the design in. Don't guess a project and don't proceed without a link.
+
+**Resume:** `## Design` holding a link but no recorded decisions - continue
+from that link.
 
 ## Step: Design
 

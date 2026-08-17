@@ -5,9 +5,8 @@ description: Create and review an implementation plan for a development task. Us
 
 # Plan Creation & Review
 
-This skill may run as a sub-agent: to ask the user anything, return the
-questions to the orchestrator and wait for answers; report completion
-explicitly when the phase is done.
+User input goes through gates - see **Gates** in the common instructions
+below.
 
 ## General
 
@@ -59,6 +58,10 @@ Once the initial draft is written, save and commit the plan file.
 
 ## Step: Review
 
+**Resume:** if `## Plan Review Findings` already holds findings with no
+decisions recorded against them, skip re-running the review - go straight to
+presenting them and recording the outcomes.
+
 ### 1. Run the review
 
 Invoke `/devflow:_internal-review-aggregator` with:
@@ -96,9 +99,13 @@ Present to the user (only after the plan file is saved):
   one-line-each mention, then the **Decision needed** items as the severity
   breakdown, plus any reviewer skip notes.
 
-Ask the user to approve the plan, or to say what to do about each Decision-needed
-finding. This skill runs as a sub-agent: return the report and the questions to
-the orchestrator and wait for the user's answers.
+Ask the user to approve the plan, or to say what to do about each
+Decision-needed finding, keyed by that finding's `Q<n>` id.
+
+End the gate turn with that report as the package - it is presented as
+written, so word it for the user. Writing the decision-needed findings into
+`## Plan Review Findings` in the step above is this gate's flush; no further
+state needs saving before the turn ends.
 
 ## Step: Record the Review Decisions
 

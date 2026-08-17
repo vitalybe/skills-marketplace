@@ -12,6 +12,9 @@ severity tier and continuing unbroken through the lower tiers — so the user ca
 reference any item by its id (e.g. `Q1 - Unindexed user lookup`). The Q-ids
 cover the findings/Decision-needed list only, not the Applied-fixes one-liners.
 
+These are also the gate-package question ids: a report presented at a gate asks
+for a decision per finding, and the answers come back keyed by these same ids.
+
 ## Severity tiers
 
 - 🔴 **Critical** — blocks the artifact from working.

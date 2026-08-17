@@ -7,9 +7,8 @@ description: Close a development task by running validation and merging to main.
 
 Covers two steps: validate and merge to main.
 
-This skill may run as a sub-agent: to ask the user anything, return the
-questions to the orchestrator and wait for answers; report completion
-explicitly when the phase is done.
+User input goes through gates - see **Gates** in the common instructions
+below.
 
 ## General
 

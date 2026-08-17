@@ -80,20 +80,24 @@ complete, and report to the user.
 When the last phase is done, report what the phases produced (plan path,
 commits, PR url).
 
-### Relaying user interaction
+### Relaying gates
 
-Phase sub-agents cannot talk to the user. When a phase needs input -
-requirements Q&A, a review decision, an approval gate - it ends its turn
-and returns the questions or report to you. Then:
+Phase sub-agents cannot talk to the user. A phase needing input ends its
+turn with a gate package - the report text plus questions with `Q<n>` ids
+(see **Gates** in the common instructions). Then:
 
-1. Relay it to the user **verbatim**: `AskUserQuestion` where the choice
-   is closed (approve / needs changes, pick findings to apply), free-form
-   otherwise. Never answer on the user's behalf and never summarize a
-   question away.
-2. Send the answers back to the **same** sub-agent with `SendMessage`, so
-   it continues where it left off - do not spawn a fresh one.
+1. Relay the package **verbatim**: no summarizing, no additions, never an
+   answer of your own. `AskUserQuestion` when the package offers closed
+   options, free-form otherwise.
+2. `SendMessage` the decisions back to the **same** sub-agent, keyed by
+   Q-id.
 3. Repeat until that sub-agent explicitly reports the phase complete.
 
-A phase is done only when its sub-agent says it is done. If a sub-agent
-ends its turn with neither questions nor a completion report, ask it
-(`SendMessage`) instead of assuming either.
+If the sub-agent is gone or degraded - interrupted session, long gap, no
+response - spawn a fresh sub-agent of the same phase skill: the normal
+spawn prompt plus one line telling it to resume from the plan file, with
+the user's decisions listed by Q-id. The phase skills re-enter from plan
+state.
+
+A sub-agent ending its turn with neither a gate package nor a completion
+report is an error: ask it (`SendMessage`) instead of assuming either.
