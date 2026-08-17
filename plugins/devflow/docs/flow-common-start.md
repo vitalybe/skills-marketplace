@@ -5,7 +5,7 @@
 </current-branch>
 
 <project-config>
-!`cat project-config.toml 2>/dev/null || echo [[Error: No project config found in project root. Run: /devflow:config-project skill]]`
+!`cat "$(git rev-parse --show-toplevel)/project-config.toml" 2>/dev/null || echo [[Error: No project config found in project root. Run: /devflow:config-project skill]]`
 </project-config>
 
 ## Issue details
@@ -17,7 +17,9 @@
 **Task mode** when the block above resolved an issue, or the user names a
 key (`${CLAUDE_PLUGIN_ROOT}/bin/tasks show <KEY>`) or asks to create one
 (create it, then use its key). In task mode, if the issue has a parent,
-fetch that too: `${CLAUDE_PLUGIN_ROOT}/bin/tasks show <PARENT-KEY>`.
+fetch that too: `${CLAUDE_PLUGIN_ROOT}/bin/tasks show <PARENT-KEY>`. In task
+mode, unless the issue's state is Done or Cancelled, move it along:
+`${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> "In Progress"`.
 
 Otherwise **task-less**: skip every `${CLAUDE_PLUGIN_ROOT}/bin/tasks`
 call, and don't ask about task tracking unless the user brings up Jira or
@@ -42,8 +44,8 @@ Plan file shape: `${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`.
 ## Talking to the task tracker
 
 All tracker access goes through `${CLAUDE_PLUGIN_ROOT}/bin/tasks` - never
-invoke the underlying CLI from a SKILL.md. The flow's only tracker write
-is a single `tasks set-state` at close: "Pending Pull Request Review" on
-the PR path (fall back to "In Review" if the project's Jira lacks that
-state), "Done" on a direct merge. Never post plans, descriptions, or
-progress comments to the tracker.
+invoke the underlying CLI from a SKILL.md. The flow's only tracker writes are
+`tasks set-state`: "In Progress" at flow start, then at close "Pending Pull
+Request Review" on the PR path (fall back to "In Review" if the project's Jira
+lacks that state) or "Done" on a direct merge. Never post plans, descriptions,
+or progress comments to the tracker.

@@ -29,7 +29,7 @@ fixes and renders the report; this skill only produces the findings.
 </review-roster>
 
 <project-config>
-!`cat project-config.toml 2>/dev/null || echo "[[no project-config.toml - exclude nothing]]"`
+!`cat "$(git rev-parse --show-toplevel)/project-config.toml" 2>/dev/null || echo "[[no project-config.toml - exclude nothing]]"`
 </project-config>
 
 <doctor>

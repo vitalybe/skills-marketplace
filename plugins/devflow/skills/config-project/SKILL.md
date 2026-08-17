@@ -10,7 +10,7 @@ Reads and updates `project-config.toml` in the project root. One key per questio
 ## Step: Load Current Config
 
 <current-config>
-!`cat project-config.toml 2>/dev/null || echo "[[No project-config.toml yet — will create one]]"`
+!`cat "$(git rev-parse --show-toplevel)/project-config.toml" 2>/dev/null || echo "[[No project-config.toml yet - will create one]]"`
 </current-config>
 
 If the user passed arguments naming specific keys to (re)configure, only touch those. Otherwise, prompt for every key below that is missing from the current config.
@@ -48,7 +48,9 @@ dependencies are missing are skipped automatically regardless.
 
 ## Step: Write the Config
 
-Merge answers into `project-config.toml`. Preserve any existing keys the user didn't touch.
+Merge answers into `project-config.toml` at the repo root (`git rev-parse
+--show-toplevel`), never into the current working directory. Preserve any
+existing keys the user didn't touch.
 
 Write the final file using the Write tool (not heredoc). Format:
 

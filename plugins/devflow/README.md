@@ -32,11 +32,8 @@ devflow/
 └── bin/       # bundled tooling, referenced via ${CLAUDE_PLUGIN_ROOT}/bin
     ├── tasks                       # JIRA task dispatcher (Python, run via uv)
     ├── mdexec                      # markdown command-injector (Node)
-    ├── worktree                    # git-worktree manager (bash, needs argc/jq)
     ├── git-merge-me-local          # local no-ff merge helper (bash)
-    ├── integration-worktree-merge  # merge + worktree teardown (bash)
-    ├── doctor                      # dependency checker
-    └── _shared/script-utils.sh     # shared bash helpers
+    └── doctor                      # dependency checker
 ```
 
 ## Prerequisites
@@ -51,9 +48,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/doctor
 |---|---|---|
 | `uv` | `tasks` | https://docs.astral.sh/uv/ |
 | `node` | `mdexec` | Node.js |
-| `git` | merge/worktree helpers | git |
-| `argc` | `worktree` | `brew install argc` (or `cargo install argc`) |
-| `jq` | `worktree` | `brew install jq` |
+| `git` | `git-merge-me-local` | git |
 | `jira` (jira-cli) | `tasks` (JIRA backend) | `brew install ankitpokhrel/jira-cli/jira-cli` |
 | JIRA token | `tasks` | `JIRA_API_TOKEN` env var, or a macOS keychain item with service `jira-api-token` |
 

@@ -60,11 +60,9 @@ Read `use-pull-requests` from `<project-config>` loaded in the common instructio
 
 ### Direct merge path
 
-Run the project's integration script as specified below:
-
-```bash
-${CLAUDE_PLUGIN_ROOT}/bin/integration-worktree-merge
-```
-
+- Merge locally: `${CLAUDE_PLUGIN_ROOT}/bin/git-merge-me-local`
+- If this checkout is a worktree, remove it with plain git once the merge
+  succeeds: from the main checkout, `git worktree remove <path>`, then
+  `git branch -d <branch>` (only if fully merged; report instead of forcing).
 - `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> Done`
 - Report completion: merged to main.
