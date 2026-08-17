@@ -26,6 +26,7 @@ and the model it runs on:
 | Phase          | Skill                                  | Model  |
 | -------------- | -------------------------------------- | ------ |
 | `requirements` | `/devflow:_internal-step-requirements` | opus   |
+| `design`       | `/devflow:_internal-step-design`        | opus   |
 | `plan`         | `/devflow:_internal-step-plan`          | opus   |
 | `code`         | `/devflow:_internal-step-code`          | opus   |
 | `close`        | `/devflow:_internal-step-close`         | sonnet |
@@ -35,7 +36,17 @@ and the model it runs on:
 Which phases each flow includes, in run order:
 
 - **fast**: `requirements`, `code`
-- **full**: `requirements`, `plan`, `code`, `close`
+- **full**: `requirements`, `design` (conditional), `plan`, `code`, `close`
+
+**`design` is conditional.** Include it only when the work involves UX/UI
+changes - new or changed screens, components, or user flows. The fast path
+never includes it.
+
+You run before requirements are gathered, so judge it from the request
+itself: include `design` when the request plainly involves UI. Either way
+the requirements phase's completion report states whether UX/UI changes are
+in scope, and the orchestrator adds or drops the `design` task from that
+line.
 
 ## Step: Pick the flow
 
@@ -60,6 +71,7 @@ There is no stored phase marker: infer progress from the plan file at
 `<plan-path>` and the branch's commits. Read the plan file if it exists.
 
 - no plan file, or `## Requirements` empty → requirements pending
+- `## Design` populated → design done
 - `## Plan` empty → plan pending
 - `## Plan Review Findings` populated → the plan phase finished
 - commits on the branch beyond the plan file → code underway

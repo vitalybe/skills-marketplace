@@ -52,6 +52,11 @@ Run the phases one at a time, in the returned order, each in its own
 sub-agent: invoke the skill the mapping gave for that phase, on the model
 the mapping gave for that phase. Pass it the spawn prompt below.
 
+**Design task.** When the requirements phase reports, add or drop the
+`design` task per its `UX/UI:` line, keeping it ahead of `plan`. It runs
+`/devflow:_internal-step-design` on opus - take the skill and model from the
+mapping's table when it returned a `design` line.
+
 ### Spawn prompt
 
 Contains ONLY:

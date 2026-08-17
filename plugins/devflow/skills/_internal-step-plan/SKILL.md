@@ -48,6 +48,10 @@ What goes inside `## Plan`, and how `## Tests` relates to it, is
 specified above under **Plan format**. Follow it exactly; it is
 authoritative. Don't improvise structure here.
 
+When the plan file has a `## Design` section, the Main Changes **UI and UX
+Flows** subsection references it and must match it - don't restate or
+contradict the recorded design.
+
 Read `${CLAUDE_PLUGIN_ROOT}/docs/plan-guidelines.md` and draft against
 that rubric - it's what the plan review judges the draft by.
 

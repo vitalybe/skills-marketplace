@@ -41,6 +41,9 @@ One H1 (the task summary), then sections as the flow progresses:
 ## Requirements Brief
 (1-2 sentences: what we want and why)
 
+## Design                 (optional)
+(the Claude Design link + the key UX/UI decisions taken)
+
 ## Plan
 
 ### 1. Task Scope
@@ -76,8 +79,9 @@ One H1 (the task summary), then sections as the flow progresses:
 (full requirements Q&A - reference material)
 ```
 
-The two review-findings sections are created by the review steps, and only
-when there is something to record; every other heading above is required.
+`## Design` is created by the design phase when the task has UX/UI scope,
+and the two review-findings sections by the review steps, only when there is
+something to record; every other heading above is required.
 
 Reader-first ordering: the brief orients at the top, so the plan reads
 immediately after it; the full requirements are reference and sit at
@@ -274,6 +278,8 @@ Each section has two subsections:
 - **Requirements phase** creates the file (scaffold, `## Requirements
   Brief` up top, full `## Requirements` at the bottom). If a plan file
   already exists for the task, update it in place.
+- **Design phase** (UX/UI work only) writes `## Design` - the Claude Design
+  link and the key UX/UI decisions.
 - **Plan phase** fills in `## Plan` (all five subsections), `## Tests`,
   `## Acceptance`.
 - **Plan review** appends to `## Plan Review Findings`.

@@ -58,7 +58,7 @@ were started in). Do not touch any other worktree, branch, or the parent repo.
 
 ```
 This task references a Claude Design spec. Read it with the built-in DesignSync
-tooling (see the `claude-design` skill) - do NOT WebFetch the URL or open it in
+tooling (see `/devflow:claude-design`) - do NOT WebFetch the URL or open it in
 a browser.
 ```
 
@@ -180,4 +180,4 @@ When a task's work is done: remove the worktree, close the tab
   first - a tab in auto mode may have cleared the gate already.
 - **Fetching a Claude Design spec with WebFetch or a browser.** Those hit an auth
   wall and render empty. Read the spec with the built-in DesignSync tooling - see
-  the `claude-design` skill.
+  `/devflow:claude-design`.

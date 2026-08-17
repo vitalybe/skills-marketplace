@@ -54,4 +54,6 @@ The plan-format reference (authoritative for the file shape) is:
 
 1. Save the plan file edits.
 2. Commit the plan file.
-3. Report completion: the plan file path and the commit.
+3. Report completion: the plan file path, the commit, and one line on
+   whether UX/UI changes are in scope - `UX/UI: yes - <what changes>` or
+   `UX/UI: no`. The orchestrator adds or drops the design phase from it.

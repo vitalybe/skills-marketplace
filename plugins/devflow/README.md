@@ -1,6 +1,6 @@
 # devflow
 
-A structured development-task workflow as a Claude Code plugin: **requirements → plan → code → close**, with sub-agent reviews and JIRA task-tracker integration. It bundles its own supporting tooling so the skills resolve everything from inside the installed plugin.
+A structured development-task workflow as a Claude Code plugin: **requirements → design → plan → code → close** (design only for UX/UI work), with sub-agent reviews and JIRA task-tracker integration. It bundles its own supporting tooling so the skills resolve everything from inside the installed plugin.
 
 ## Skills
 
@@ -11,9 +11,11 @@ Invoked as `/devflow:<name>`.
 | `start-flow` | Orchestrator entry point. Runs a dependency preflight, then runs each outstanding phase in its own sub-agent and relays their questions to you. **Start here.** |
 | `_internal-step-phase-mapping` | Triage - picks the flow (fast path / full) and returns the phases still to run. |
 | `_internal-step-requirements` | Phase 1 - gather requirements, write the plan file. |
+| `_internal-step-design` | UX/UI work only, between phases 1 and 2 - design the screens and flows in Claude Design, record them in the plan. |
 | `_internal-step-plan` | Phase 2 - draft and review the implementation plan. |
 | `_internal-step-code` | Phase 3 - implement, test, code review. |
 | `_internal-step-close` | Phase 4 - validate and merge/PR. |
+| `claude-design` | Read and push Claude Design specs (`claude.ai/design`) via the built-in DesignSync tooling. |
 | `code-review` | Standalone review of the working diff vs main (ad-hoc, outside the flow). |
 | `pr-review` | Review a GitHub PR (`review PR #N`) against its plan, inside a worktree. |
 | `config-project` | Configure per-project settings (`project-config.toml`). |
