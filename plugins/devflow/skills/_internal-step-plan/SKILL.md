@@ -58,9 +58,9 @@ Once the initial draft is written, save and commit the plan file.
 
 ## Step: Review
 
-**Resume:** if `## Plan Review Findings` already holds findings with no
-decisions recorded against them, skip re-running the review - go straight to
-presenting them and recording the outcomes.
+**Resume:** if `## Plan review findings` already holds entries under
+`### Unhandled`, skip re-running the review - re-enter at the gate, presenting
+those entries and recording the outcomes.
 
 ### 1. Run the review
 
@@ -83,8 +83,8 @@ are in (a single commit is fine - the plan is one file).
 
 ### 3. Write the decision-needed findings into the plan
 
-Record the **Decision needed** findings in the plan's `## Plan Review Findings`
-section, then commit the plan file.
+Record the **Decision needed** findings under `### Unhandled` in the plan's
+`## Plan review findings` section, then commit the plan file.
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
@@ -104,17 +104,17 @@ Decision-needed finding, keyed by that finding's `Q<n>` id.
 
 End the gate turn with that report as the package - it is presented as
 written, so word it for the user. Writing the decision-needed findings into
-`## Plan Review Findings` in the step above is this gate's flush; no further
-state needs saving before the turn ends.
+`## Plan review findings` → `### Unhandled` in the step above is this gate's
+flush; no further state needs saving before the turn ends.
 
 ## Step: Record the Review Decisions
 
 Once the answers are in, record each finding's outcome in the plan per the
 **Recording review outcomes in the plan** procedure in the report format above:
-implement the fixes the user asked for, note rejections with their reason and
-questions with their answer, and move anything the user ignored to
-`### Unhandled`. Commit the plan file. This phase does not complete until the
-plan carries all of it.
+move each decided finding to `### Handled` with its decision - implementing the
+fixes the user asked for, noting rejections with their reason and questions with
+their answer. Anything the user ignored stays under `### Unhandled`. Commit the
+plan file. This phase does not complete until the plan carries all of it.
 
 ## Wrap Up
 

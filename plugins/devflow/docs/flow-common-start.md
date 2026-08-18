@@ -59,9 +59,10 @@ Report phase completion explicitly. A turn that ends with neither a gate
 package nor a completion report is an error.
 
 A completion report is valid only when no gate is outstanding: if the plan
-file holds any review finding with no recorded decision, end the turn with
-that gate package instead. Writing findings to the plan is the flush before
-presenting them, never a substitute for presenting them. A user instruction
+file holds any finding under `### Unhandled` in its review sections that the
+user has not yet been asked about, end the turn with that gate package
+instead. Writing findings to the plan is the flush before presenting them,
+never a substitute for presenting them. A user instruction
 to stop after a step means stop at its gate, not past it.
 
 ## Talking to the task tracker

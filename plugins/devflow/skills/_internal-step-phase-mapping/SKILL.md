@@ -73,9 +73,9 @@ There is no stored phase marker: infer progress from the plan file at
 - no plan file, or `## Requirements` empty → requirements pending
 - `## Design` populated → design done
 - `## Plan` empty → plan pending
-- `## Plan Review Findings` populated → the plan phase finished
+- `## Plan review findings` populated → the plan phase finished
 - commits on the branch beyond the plan file → code underway
-- `## Code Review Findings` populated → code review done, only close left
+- `## Code review findings` populated → code review done, only close left
 - branch already merged, or a PR already open → nothing left to run
 
 Drop the completed phases off the front of the flow's list and keep the

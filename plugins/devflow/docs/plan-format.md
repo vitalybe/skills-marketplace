@@ -63,11 +63,17 @@ One H1 (the task summary), then sections as the flow progresses:
 ### 5. Detailed Implementation
 (the buildable detail - files, contracts, cases, diagrams)
 
-## Plan Review Findings
-(decisions taken on plan-review findings)
+## Plan review findings
+### Unhandled
+(open plan-review findings)
+### Handled
+(plan-review findings the user decided on, with the decision)
 
-## Code Review Findings
-(decisions taken on code-review findings)
+## Code review findings
+### Unhandled
+(open code-review findings)
+### Handled
+(code-review findings the user decided on, with the decision)
 
 ## Tests
 (thin rollup - one line per test file)
@@ -260,18 +266,24 @@ group instead.
 
 ## Review findings sections
 
-`## Plan Review Findings` and `## Code Review Findings` are the durable
+`## Plan review findings` and `## Code review findings` are the durable
 record of what the reviews turned up and what the user decided about it.
 The review steps write **only decision-needed findings** here - findings the
 agent already fixed itself go in the chat report and never into the plan.
 
+Use these headings exactly as written, including casing; never improvise
+alternatives (e.g. a flat `## Review findings` section).
+
 Each section has two subsections:
 
-- `### User decisions` - one entry per finding with the decision the user
-  took: fixed as requested / rejected, with the reason / question asked,
-  with the answer.
-- `### Unhandled` - findings the user ignored or skipped past (e.g. said
-  "go to the next phase" without addressing them).
+- `### Unhandled` - the live list of open findings. A review writes its
+  decision-needed findings here before the gate, each as the full finding:
+  severity, `Q<n>` id, location, issue, suggested change, source. Findings the
+  user ignores or skips past stay here untouched - no annotation. Empty or
+  absent means nothing is pending.
+- `### Handled` - findings the user decided on, moved here from `### Unhandled`
+  with the decision recorded: fixed as requested (then implemented), rejected
+  with the user's reason, or a question with its answer.
 
 ## Lifecycle
 
@@ -282,11 +294,11 @@ Each section has two subsections:
   link and the key UX/UI decisions.
 - **Plan phase** fills in `## Plan` (all five subsections), `## Tests`,
   `## Acceptance`.
-- **Plan review** appends to `## Plan Review Findings`.
+- **Plan review** appends to `## Plan review findings`.
 - **Code phase** reads the file to drive implementation; may edit it if
   the plan changes during implementation (including recording tests
   discovered mid-implementation in their concern group + the rollup).
-- **Code review** appends to `## Code Review Findings`.
+- **Code review** appends to `## Code review findings`.
 - **Close phase** does **not** touch the file - it merges as-is.
 
 After merge, the plan stays in `_plans/` on `main` as a permanent record.

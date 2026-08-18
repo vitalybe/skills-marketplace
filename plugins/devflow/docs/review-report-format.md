@@ -60,18 +60,20 @@ chat and in the plan.
 
 - **Applied findings never enter the plan.** Findings the agent fixed itself
   (the Apply tier) appear in the chat report only.
-- **Decision-needed findings are written to the plan** before they go to the
-  user: under `## Plan Review Findings` for a plan review, `## Code Review
-  Findings` for a code review. Then present them to the user.
-- **After the user responds**, record each finding under `### User decisions`
-  with the decision taken:
+- **Decision-needed findings are written to `### Unhandled`** before they go to
+  the user - under `## Plan review findings` for a plan review, `## Code review
+  findings` for a code review. This write is the gate's flush. Then present them
+  to the user.
+- **After the user responds**, move each decided finding to `### Handled` with
+  the decision recorded:
   - *fixed as requested* - then implement it;
   - *rejected* - with the user's reason;
   - *question* - with its answer.
 - **Findings the user ignored or skipped** (e.g. "go to the next phase" without
-  addressing them) move under `### Unhandled`.
+  addressing them) stay under `### Unhandled` as-is.
 
-The plan must carry these decisions before the phase completes.
+`### Unhandled` is the live list of open items. The plan must carry the
+decisions the user took before the phase completes.
 
 ## Example
 

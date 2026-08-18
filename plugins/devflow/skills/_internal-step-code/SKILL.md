@@ -21,10 +21,10 @@ Environment details above). If implementation reveals the plan needs
 adjustment, edit that file (not the issue description), re-confirm
 with the user, then commit the plan file.
 
-**Resume:** the plan's `## Code Review Findings` says where to re-enter.
-Findings with no decision recorded - go to **Step: User Review** and present
-them. Decisions recorded but not carried out - implement them, then continue
-from there.
+**Resume:** the plan's `## Code review findings` says where to re-enter. Entries
+under `### Unhandled` - go to **Step: User Review** and present them. Entries
+under `### Handled` whose decision was not carried out - implement them, then
+continue from there.
 
 ## Step: Implement
 
@@ -99,9 +99,9 @@ Do NOT batch multiple fixes into one commit - each fix should be reviewable and 
 
 ### 3. Write the decision-needed findings into the plan
 
-Record the **Decision needed** findings in the plan's `## Code Review Findings`
-section, and update the plan itself if a finding changed it. Commit the plan file
-(separate commit).
+Record the **Decision needed** findings under `### Unhandled` in the plan's
+`## Code review findings` section, and update the plan itself if a finding
+changed it. Commit the plan file (separate commit).
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
@@ -137,8 +137,8 @@ finding's `Q<n>` id.
 
 End the gate turn with the diff overview, the before/after findings, and that
 approval question as the package - it is presented as written, so word it for
-the user. Writing the decision-needed findings into `## Code Review Findings`
-in the step above is this gate's flush.
+the user. Writing the decision-needed findings into `## Code review findings` →
+`### Unhandled` in the step above is this gate's flush.
 
 If changes are wanted: apply them, re-commit, and ask again.
 
@@ -147,10 +147,11 @@ If changes are wanted: apply them, re-commit, and ask again.
 ## Step: Record the Review Decisions
 
 Once the answers are in, record each finding's outcome in the plan's
-`## Code Review Findings` section per the **Recording review outcomes in the
-plan** procedure in the report format above: implement the fixes the user asked
-for, note rejections with their reason and questions with their answer, and move
-anything the user ignored to `### Unhandled`. Commit the plan file. This phase
+`## Code review findings` section per the **Recording review outcomes in the
+plan** procedure in the report format above: move each decided finding to
+`### Handled` with its decision - implementing the fixes the user asked for,
+noting rejections with their reason and questions with their answer. Anything
+the user ignored stays under `### Unhandled`. Commit the plan file. This phase
 does not complete until the plan carries all of it.
 
 ## Wrap Up
