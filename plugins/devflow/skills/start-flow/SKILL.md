@@ -101,3 +101,7 @@ state.
 
 A sub-agent ending its turn with neither a gate package nor a completion
 report is an error: ask it (`SendMessage`) instead of assuming either.
+
+A completion report that names findings as recorded but not decided is an
+unmet gate, not a completion: SendMessage the sub-agent to return them as a
+gate package.
