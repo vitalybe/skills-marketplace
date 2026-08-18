@@ -50,8 +50,10 @@ stay with the user.
    or needs judgment.
 
 5. **Find the plan.** Pull the task key from the PR title/body and run
-   `${CLAUDE_PLUGIN_ROOT}/bin/tasks plan <KEY>`. If no path, parse the PR body
-   for a `_plans/...md` link; last resort, ask the user. Show the resolved plan
+   `${CLAUDE_PLUGIN_ROOT}/bin/tasks plan <KEY>`. If no path, check the PR
+   body's first line for `Plan: <blob-url>` and take the path after
+   `/blob/<branch>/`; if that's absent, parse the PR body for a
+   `_plans/...md` link; last resort, ask the user. Show the resolved plan
    path before continuing. If there genuinely is no plan, proceed without one
    (the aggregator handles a missing plan path).
 

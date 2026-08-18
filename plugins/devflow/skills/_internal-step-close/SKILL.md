@@ -50,8 +50,19 @@ Read `use-pull-requests` from `<project-config>` loaded in the common instructio
 - Push the current branch: `git push -u origin HEAD`
 - Open a PR with `gh pr create`. **PR title MUST contain `<KEY>`** so the
   task tracker auto-links the PR. (Task-less mode: no key exists - use a
-  short imperative title derived from the plan slug instead.) The body
-  should link to the plan file at the injected `<plan-path>`.
+  short imperative title derived from the plan slug instead.) The PR body's
+  first line is a link to the plan:
+
+  `Plan: <repo-url>/blob/<head-branch>/<plan-path>`
+
+  Build `<repo-url>` from `git remote get-url origin`, normalized to https
+  form with any `.git` suffix stripped (e.g.
+  `git@github.com:drivenets/ai-enablement.git` becomes
+  `https://github.com/drivenets/ai-enablement`). `<head-branch>` is the
+  branch the PR is opened from. `<plan-path>` is the injected `<plan-path>`.
+  Example:
+
+  `Plan: https://github.com/drivenets/ai-enablement/blob/throughput-vs-cost-AIE-401/_plans/AIE-401-throughput-vs-cost.md`
 - `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> "Pending Pull Request Review"`
   (if the project's Jira has no such state, use `"In Review"`).
 - Stop here. The human reviewer merges on GitHub. Do not merge locally.
