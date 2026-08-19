@@ -17,3 +17,12 @@ So, on **every** change to a plugin (bug fix, skill edit, tooling tweak):
 
 Users then pick it up with `/plugin marketplace update` followed by
 `/plugin update <name>` (restart to apply).
+
+## `plugins/devflow` is generated - do not edit it here
+
+The source of truth is `~/git/ai-enablement-skills/plugins/aie-devflow`
+(the DriveNets department repo). A `post-commit` / `post-merge` hook there runs
+`scripts/sync-from-aie.sh`, which rsyncs `skills/`, `bin/`, `docs/` over this
+copy with `--delete` and regenerates `plugins/devflow/.claude-plugin/plugin.json`
+(version bumped automatically). Anything edited here is silently overwritten on
+the department repo's next commit - make devflow changes there instead.

@@ -49,6 +49,9 @@ matches skills in more than one plugin, ask which one. Its directory name and
    -> that plugin.
 2. Otherwise -> **workbench** (the default home for everyday skills).
 
+**devflow is generated here** - its source is `~/git/ai-enablement-skills/plugins/aie-devflow`.
+A devflow skill edit belongs in that repo (commit there; a git hook syncs it back).
+
 If the chosen plugin does not exist yet, that is a **new plugin** - confirm with
 the user, then in step 4 you'll create its `.claude-plugin/plugin.json` and add
 it to `marketplace.json`.
