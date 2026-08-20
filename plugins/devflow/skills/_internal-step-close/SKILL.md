@@ -63,6 +63,11 @@ Read `use-pull-requests` from `<project-config>` loaded in the common instructio
   Example:
 
   `Plan: https://github.com/drivenets/ai-enablement/blob/throughput-vs-cost-AIE-401/_plans/AIE-401-throughput-vs-cost.md`
+
+  The body's last line records the devflow version that produced the PR:
+
+  `devflow v<version>`, where `<version>` is
+  `jq -r .version "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"`.
 - `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> "Pending Pull Request Review"`
   (if the project's Jira has no such state, use `"In Review"`).
 - Stop here. The human reviewer merges on GitHub. Do not merge locally.
