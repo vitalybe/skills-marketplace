@@ -87,8 +87,12 @@ turn with a gate package - the report text plus questions with `Q<n>` ids
 (see **Gates** in the common instructions). Then:
 
 1. Relay the package **verbatim**: no summarizing, no additions, never an
-   answer of your own. `AskUserQuestion` when the package offers closed
-   options, free-form otherwise.
+   answer of your own. Print the whole package text - every section,
+   every finding body - as your message **first**, then `AskUserQuestion`
+   for the choices only when the package offers closed options, free-form
+   otherwise. Never let a question payload be the only place a finding
+   appears: its option labels and descriptions are too short to carry one,
+   and batching past 4 questions per call silently merges findings.
 2. `SendMessage` the decisions back to the **same** sub-agent, keyed by
    Q-id.
 3. Repeat until that sub-agent explicitly reports the phase complete.
