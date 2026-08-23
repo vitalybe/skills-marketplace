@@ -59,8 +59,8 @@ Once the initial draft is written, save and commit the plan file.
 ## Step: Review
 
 **Resume:** if `## Plan review findings` already holds entries under
-`### Unhandled`, skip re-running the review - re-enter at the gate, presenting
-those entries and recording the outcomes.
+`### Unhandled`, skip re-running the review - re-enter at the gate with those
+entries' ids and record the outcomes.
 
 ### 1. Run the review
 
@@ -84,7 +84,9 @@ are in (a single commit is fine - the plan is one file).
 ### 3. Write the decision-needed findings into the plan
 
 Record the **Decision needed** findings under `### Unhandled` in the plan's
-`## Plan review findings` section, then commit the plan file.
+`## Plan review findings` section - in full, with every field the report format
+specifies, since the plan is where the user reads them. Then commit the plan
+file.
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
@@ -92,20 +94,21 @@ Record the **Decision needed** findings under `### Unhandled` in the plan's
 
 ## Step: User Review
 
-Present to the user (only after the plan file is saved):
+Only after the plan file is saved and committed, end with the gate package:
 
-- The plan file path as injected in `<plan-path>`.
-- The report per the shared format above - Apply items as the brief
-  one-line-each mention, then the **Decision needed** items as the severity
-  breakdown, plus any reviewer skip notes.
+- The plan file path as injected in `<plan-path>`, and
+  `## Plan review findings` → `### Unhandled` as the section holding the
+  findings.
+- The open findings by `Q<n>` id and title only - their bodies are in the plan
+  and the presenter reads them from there. Don't restate them.
+- Apply items as the brief one-line-each mention, plus any reviewer skip notes.
 
-Ask the user to approve the plan, or to say what to do about each
-Decision-needed finding, keyed by that finding's `Q<n>` id.
+Ask the user to approve the plan, or to answer per finding, keyed by its
+`Q<n>` id.
 
-End the gate turn with that report as the package - it is presented as
-written, so word it for the user. Writing the decision-needed findings into
-`## Plan review findings` → `### Unhandled` in the step above is this gate's
-flush; no further state needs saving before the turn ends.
+Writing the decision-needed findings into `## Plan review findings` →
+`### Unhandled` in the step above is this gate's flush; no further state needs
+saving before the turn ends.
 
 ## Step: Record the Review Decisions
 

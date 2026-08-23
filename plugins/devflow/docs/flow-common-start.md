@@ -52,8 +52,12 @@ plan alone.
 End the turn with a user-ready package: the exact report text to present,
 worded so it needs no rewording, plus the questions enumerated with stable
 ids (`Q1`, `Q2`, ...), each carrying closed options where a choice fits.
-Answers come back keyed by those ids; continue from them. Running inline
-rather than as a sub-agent, present that same package yourself.
+What the user is asked must be self-contained - the full body needed to
+decide, since that is what the question tool shows. Review findings satisfy
+that from the plan file: the package names the section and the ids, and
+whoever asks reads the bodies from there. Answers come back keyed by those
+ids; continue from them. Running inline rather than as a sub-agent, present
+that same package yourself (`AskUserQuestion`, one question per finding).
 
 Report phase completion explicitly. A turn that ends with neither a gate
 package nor a completion report is an error.
@@ -62,7 +66,8 @@ A completion report is valid only when no gate is outstanding: if the plan
 file holds any finding under `### Unhandled` in its review sections that the
 user has not yet been asked about, end the turn with that gate package
 instead. Writing findings to the plan is the flush before presenting them,
-never a substitute for presenting them. A user instruction
+never a substitute for asking about them - the gate still names them by id and
+asks for a decision on each. A user instruction
 to stop after a step means stop at its gate, not past it.
 
 ## Talking to the task tracker

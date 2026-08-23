@@ -87,12 +87,17 @@ turn with a gate package - the report text plus questions with `Q<n>` ids
 (see **Gates** in the common instructions). Then:
 
 1. Relay the package **verbatim**: no summarizing, no additions, never an
-   answer of your own. Print the whole package text - every section,
-   every finding body - as your message **first**, then `AskUserQuestion`
-   for the choices only when the package offers closed options, free-form
-   otherwise. Never let a question payload be the only place a finding
-   appears: its option labels and descriptions are too short to carry one,
-   and batching past 4 questions per call silently merges findings.
+   answer of your own. Print its prose sections (overview, applied fixes,
+   plan path, skip notes) as your message **first**, then `AskUserQuestion`
+   for the questions.
+
+   When the package points at review findings in the plan file, read that
+   section (`### Unhandled`) and ask one question per open `Q<n>`: `question`
+   carries that finding's body from the plan, copied whole, so the user decides
+   from the prompt itself; `options` carry its **Options.** choices (free-form
+   when it lists none). Never shorten a finding to fit an option label. At most
+   4 questions per call - findings past that go in a follow-up call, never
+   merged.
 2. `SendMessage` the decisions back to the **same** sub-agent, keyed by
    Q-id.
 3. Repeat until that sub-agent explicitly reports the phase complete.

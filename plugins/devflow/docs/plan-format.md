@@ -278,9 +278,11 @@ Each section has two subsections:
 
 - `### Unhandled` - the live list of open findings. A review writes its
   decision-needed findings here before the gate, each as the full finding:
-  severity, `Q<n>` id, location, issue, suggested change, source. Findings the
-  user ignores or skips past stay here untouched - no annotation. Empty or
-  absent means nothing is pending.
+  severity, `Q<n>` id, location, issue, options, implication, source. This is
+  the only copy of the body - the gate asks one question per finding with that
+  body as the question's text - so write it self-contained. Findings the user
+  ignores or skips past stay here untouched - no annotation. Empty or absent
+  means nothing is pending.
 - `### Handled` - findings the user decided on, moved here from `### Unhandled`
   with the decision recorded: fixed as requested (then implemented), rejected
   with the user's reason, or a question with its answer.

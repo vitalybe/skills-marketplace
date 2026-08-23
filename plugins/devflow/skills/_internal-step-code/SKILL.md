@@ -22,7 +22,7 @@ adjustment, edit that file (not the issue description), re-confirm
 with the user, then commit the plan file.
 
 **Resume:** the plan's `## Code review findings` says where to re-enter. Entries
-under `### Unhandled` - go to **Step: User Review** and present them. Entries
+under `### Unhandled` - go to **Step: User Review** and gate on their ids. Entries
 under `### Handled` whose decision was not carried out - implement them, then
 continue from there.
 
@@ -100,18 +100,13 @@ Do NOT batch multiple fixes into one commit - each fix should be reviewable and 
 ### 3. Write the decision-needed findings into the plan
 
 Record the **Decision needed** findings under `### Unhandled` in the plan's
-`## Code review findings` section, and update the plan itself if a finding
-changed it. Commit the plan file (separate commit).
+`## Code review findings` section - in full, with every field the report format
+specifies, since the plan is where the user reads them - and update the plan
+itself if a finding changed it. Commit the plan file (separate commit).
 
 <report-format>
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
 </report-format>
-
-### 4. Report to the user
-
-Report using the shared format above - applied fixes as the brief one-line-each
-mention, then the **Decision needed** findings as the severity breakdown (with
-`source` tags), and mention any reviewer skip notes.
 
 ## Step: User Review
 
@@ -127,18 +122,20 @@ Present to the user:
 
 - **Implementation overview** - brief summary of what was built and the key decisions made
 - **Documentation changes** - one line per doc that was updated
-- **Code review findings** - for each finding, show:
-  - The finding and how it was addressed (applied or disagreed - and why)
-  - A short code snippet showing the problem and how the fix changes it (before/after)
+- **Applied fixes** - one line each, plus any reviewer skip notes
+- **Decision needed findings** - the plan file path plus `## Code review
+  findings` → `### Unhandled` as the section holding them, then the open
+  findings by `Q<n>` id and title only.
+  Their bodies are in the plan and the presenter reads them from there - don't
+  restate them, no prose severity breakdown, no before/after snippets.
 
 Ask: "Are you happy with the implementation? Approve, or tell me what to change -
 including what to do about each Decision-needed finding", keyed by each
 finding's `Q<n>` id.
 
-End the gate turn with the diff overview, the before/after findings, and that
-approval question as the package - it is presented as written, so word it for
-the user. Writing the decision-needed findings into `## Code review findings` →
-`### Unhandled` in the step above is this gate's flush.
+End the gate turn with that as the package. Writing the decision-needed
+findings into `## Code review findings` → `### Unhandled` in the step above is
+this gate's flush.
 
 If changes are wanted: apply them, re-commit, and ask again.
 
