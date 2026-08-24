@@ -28,6 +28,20 @@ harmless (those tools are never called) - proceed.
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
 
+## Orchestrator markers
+
+<orchestrator-run>
+!`[ -n "${ORCHESTRATOR_ENVIRONMENT:-}" ] && echo yes || echo no`
+</orchestrator-run>
+
+`no` means this is an ordinary session: emit no marker anywhere in this
+skill, skip every step below that calls an `aie-orchestrator-skills:` skill,
+and run the flow exactly as if those steps were not written. `yes` means the
+run is orchestrated and the markers below are part of the flow.
+
+Every marker is yours to emit, never a phase sub-agent's - a marker emitted
+inside a sub-agent never reaches the orchestrator backend.
+
 ## Step: Work out the phases
 
 Spawn `/devflow:_internal-step-phase-mapping` in a sub-agent (model:
@@ -48,9 +62,14 @@ complete only when that phase's sub-agent reports the phase done.
 
 ## Step: Run each phase
 
-Run the phases one at a time, in the returned order, each in its own
-sub-agent: invoke the skill the mapping gave for that phase, on the model
-the mapping gave for that phase. Pass it the spawn prompt below.
+Run the phases one at a time, in the returned order. For each phase:
+
+1. Invoke `aie-orchestrator-skills:orchestrator-phase` with that phase's name
+   title-cased, e.g., `Requirements`, `Design`, `Plan`, `Code`, `Close` - and emit
+   its marker before the sub-agent starts.
+2. Run the phase in its own sub-agent: invoke the skill the mapping gave for
+   that phase, on the model the mapping gave for that phase. Pass it the spawn
+   prompt below.
 
 **Design task.** When the requirements phase reports, add or drop the
 `design` task per its `UX/UI:` line, keeping it ahead of `plan`. It runs
@@ -77,8 +96,27 @@ Mark the phase's task complete, then start the next phase's sub-agent. If
 a phase reports failure or that it is blocked, stop, mark nothing
 complete, and report to the user.
 
-When the last phase is done, report what the phases produced (plan path,
-commits, PR url).
+**Gate before close.** When the phase that just reported complete is `code`
+and `close` is still to run, the run stops for a human sign-off before
+anything merges. Invoke `aie-orchestrator-skills:orchestrator-gate` with
+email `vbelman@drivenets.com` and reason `devflow sign-off before close`,
+emit its marker, and **end the turn there** - do not start the close
+sub-agent, make no further edits, and say nothing after the marker that
+implies more work in this turn.
+
+The code phase's own user approval is not this gate: that one settles the
+implementation, this one blocks the merge on a named human. When the gate
+clears you are told so; re-run this skill from the top, and the phase
+mapping returns `close` as the only phase left. The fast path has no
+`close` phase and so never gates here.
+
+**Finishing the run.** When the last phase is done, report what the phases
+produced (plan path, commits, PR url). That report happens either way.
+
+Then, on an orchestrated run only, invoke
+`aie-orchestrator-skills:orchestrator-flow-done` and emit `MARKER-DONE` as
+the final line of that same message. Only once every phase has reported
+complete - if one failed or is blocked, report that and emit no done marker.
 
 ### Relaying gates
 
