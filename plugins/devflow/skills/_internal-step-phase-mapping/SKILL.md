@@ -35,12 +35,12 @@ and the model it runs on:
 
 Which phases each flow includes, in run order:
 
-- **fast**: `requirements`, `code`
+- **fast**: `requirements`, `design` (conditional), `code`
 - **full**: `requirements`, `design` (conditional), `plan`, `code`, `close`
 
-**`design` is conditional.** Include it only when the work involves UX/UI
-changes - new or changed screens, components, or user flows. The fast path
-never includes it.
+**`design` is conditional in both flows.** Include it only when the work
+involves UX/UI changes - new or changed screens, components, or user flows.
+It always sits directly after `requirements`.
 
 You run before requirements are gathered, so judge it from the request
 itself: include `design` when the request plainly involves UI. Either way
@@ -52,14 +52,18 @@ line.
 
 Assess the scope of the work:
 
-- **Fast path** - small and self-contained, no meaningful design decision
-  and no cross-cutting risk: a UI-only tweak, a single script, a skill/doc
-  edit, a localized bug fix, a copy change. Requirements may be a quick
-  confirmation; the plan phase is skipped entirely.
+- **Fast path** - small and self-contained, no cross-cutting risk: a UI-only
+  tweak, a single script, a skill/doc edit, a localized bug fix, a copy
+  change. Requirements may be a quick confirmation; the plan phase is
+  skipped entirely.
 - **Full flow** - anything larger or feature-shaped: several files, a new
-  component with tests, a product/design/security decision, or a
-  cross-cutting or risky change.
+  component with tests, a product or security decision, or a cross-cutting
+  or risky change.
 - **When unsure, choose the full flow.**
+
+Design is orthogonal to this choice: a small UI tweak stays on the fast path
+and picks up a `design` phase, it does not become a full flow because it
+touches the UI.
 
 **Override.** If the request explicitly asks for a route - "fast path" /
 "simple", or "full flow" / "run all the phases" - honor it and skip the
@@ -92,11 +96,17 @@ flow: fast | full
 why: <one line - what you inferred and why this flow>
 phase: <name> <skill> (<model>)
 phase: <name> <skill> (<model>)
+design-row: <skill> (<model>)
 ```
 
 One `phase:` line per remaining phase, in run order, with the skill and
 model taken verbatim from the phase table. If nothing is left to run, emit
 `phases: none` in place of the `phase:` lines.
+
+`design-row:` is the phase table's `design` row, copied verbatim. Emit it
+only when you did **not** schedule a `design` phase: requirements may still
+turn design on, and this is where the orchestrator reads the skill and model
+from rather than hardcoding its own.
 
 Example:
 
@@ -106,4 +116,5 @@ why: plan file has requirements only, so plan onward is pending
 phase: plan /devflow:_internal-step-plan (opus)
 phase: code /devflow:_internal-step-code (opus)
 phase: close /devflow:_internal-step-close (sonnet)
+design-row: /devflow:_internal-step-design (opus)
 ```

@@ -1,7 +1,7 @@
 {
   "name": "devflow",
   "description": "Structured development task workflow: requirements to design to plan to code to close, with a shared multi-reviewer roster (official-anthropic-review-skill, fallow, ponytail, codex) and JIRA task-tracker integration. Includes standalone code-review, pr-review and claude-design skills. Bundles its own tooling (tasks, mdexec).",
-  "version": "0.9.1",
+  "version": "0.9.5",
   "author": {
     "name": "Vitaly Belman",
     "email": "vbelman@drivenets.com"
