@@ -239,9 +239,9 @@ worktree setup, or when step 6's stash pop conflicted.
 ## Safety rules
 
 - **Rename, never reset.** Moving commits off the default branch is done with
-  `git branch -m` plus a fresh branch at `origin/<default>`. Never
-  `git reset --hard` a branch that has commits on it - the rename is equally
-  short and cannot lose work.
+  `git branch -m` plus a fresh branch at `origin/<default>`. Never hard-reset a
+  branch that has commits on it - the rename is equally short and cannot lose
+  work.
 - Stash before switching or renaming branches; never move branches with a dirty
   tree.
 - Never commit. This skill sets up the workspace; the user decides when work is
