@@ -119,11 +119,13 @@ when the work is sitting on the default branch:
 - Keep it short. If the name already appears in `<existing-branches>`, pick
   `<slug>-2` or ask - never clobber an existing branch.
 
-**Worktree path.** If `<worktree-list>` shows the repo already keeps linked
-worktrees somewhere, reuse that parent directory - matching the existing
-convention beats inventing a new one. Otherwise default to a sibling of the
-checkout, deliberately OUTSIDE the working tree so it never pollutes
-`git status`: `<repo-parent>/<repo-name>-worktrees/<branch-name>`.
+**Worktree path.** Always `<repo-toplevel>/.claude/worktrees/<branch-name>`,
+even if `<worktree-list>` shows the repo keeping worktrees somewhere else. That
+directory is Claude Code's managed location: `EnterWorktree` approves a `path`
+under it silently and **prompts the user for anything outside it**, and Claude
+Code keeps it out of `git status` through `.git/info/exclude`. If the branch name
+contains `/`, replace each one with `+` in the directory name - that is how
+Claude Code names its own.
 
 ## 4. Stash the dirty working tree
 

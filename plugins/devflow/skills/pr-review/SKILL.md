@@ -24,8 +24,9 @@ stay with the user.
    [ "$(git rev-parse --git-common-dir)" = "$(git rev-parse --git-dir)" ] && echo "main-repo" || echo "worktree"
    ```
    If this prints `main-repo`, **stop**. Tell the user to create and enter a
-   worktree first (e.g. `git worktree add .worktrees/pr-<N>` then the
-   **EnterWorktree** tool, `path: .worktrees/pr-<N>`), and re-run from there.
+   worktree first (e.g. `git worktree add .claude/worktrees/pr-<N>` then the
+   **EnterWorktree** tool, `path: .claude/worktrees/pr-<N>`), and re-run from
+   there.
 
 2. **Fetch PR metadata:**
    ```bash
