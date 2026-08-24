@@ -54,9 +54,8 @@ Capture the worktree path and branch name while still inside it, then:
 2. Confirm it is on the default branch (`git rev-parse --abbrev-ref HEAD`). If it is on some other branch or has uncommitted changes, stop and report instead of switching or stashing.
 3. Merge: `git merge --no-ff --no-edit <branch>`.
    - On conflict: stop, do not auto-resolve, report the conflicting files.
-4. Remove the worktree: `git worktree remove <worktree-path>` (without `--force`; if it refuses due to leftover files, report instead of forcing).
-5. Delete the branch locally: `git branch -d <branch>`. Do not touch any remote branch.
-6. Show `git log --oneline -3` and `git worktree list`.
+4. Remove the worktree and delete its branch: `bash ${CLAUDE_PLUGIN_ROOT}/bin/worktree-remove <worktree-path>`. It refuses on a dirty worktree, retries with `--force` only for the submodule case plain `git worktree remove` can't handle, and leaves an unmerged branch in place. Do not touch any remote branch.
+5. Show `git log --oneline -3` and `git worktree list`.
 
 ## 3b. Not in a worktree — just merge
 
@@ -76,6 +75,6 @@ State plainly:
 ## Safety rules
 
 - Never `git push`, `git reset --hard`, `git rebase`, `git commit --amend`, or `--no-verify`.
-- Never `--force` a worktree removal or a branch delete (`-D`) without explicit user consent.
+- Never `--force` a worktree removal by hand (the bundled `worktree-remove` script's own retry is the exception) or delete a branch with `-D` without explicit user consent.
 - Never resolve merge conflicts automatically; hand them back to the user.
 - Never delete a remote branch.
