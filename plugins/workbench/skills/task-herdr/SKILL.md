@@ -106,12 +106,12 @@ STOP and ask rather than guess.
 2. **Write the prompt to a temp file** per the template above.
 
 3. **Spawn with one call** - it creates the worktree+branch, opens a dedicated
-   tab (`herdr tab create`), launches the agent in it (`herdr agent start
-   --tab`, cd'd into the worktree, claude started interactive with the prompt as
-   its positional arg), closes the tab's leftover root shell, and registers the
-   agent under the orchestrator for tracking (`herdr agent set-parent`). Placement
-   and parenting are two calls because `agent start --parent` would split the
-   orchestrator's pane in the same tab instead of opening a new one:
+   tab rooted in the worktree (`herdr tab create --cwd`), starts claude in that
+   tab's root shell pane (`herdr agent start --kind claude --pane`), pastes the
+   prompt into the ready session and submits it, and registers the agent under
+   the orchestrator for tracking (`herdr agent set-parent`). Placement and
+   parenting are two calls: the tab decides where the agent lives, set-parent
+   only records the tracking relationship:
 
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/spawn-herdr-task.sh \

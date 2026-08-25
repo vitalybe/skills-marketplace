@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # spawn-herdr-task.sh - one-shot: worktree + branch, then a natively-tracked
-# child `claude` agent running in its OWN herdr tab. The agent is launched in a
-# freshly-created tab (`herdr tab create` + `herdr agent start --tab`) and
+# child `claude` agent running in its OWN herdr tab. A fresh tab is created in
+# the worktree (`herdr tab create --cwd`), claude is started in that tab's root
+# shell pane (`herdr agent start --kind claude --pane`), and the agent is
 # registered as a child of the orchestrator's pane (`herdr agent set-parent`),
 # so herdr tracks it in its agent tree (`herdr agent list` / `herdr agent get`).
-# Placement and parenting are decoupled on purpose: `agent start --parent` would
-# split the parent's pane in the SAME tab instead of opening a new one. Prints a
-# JSON summary on stdout so the caller can register the tracked agent.
+# Placement and parenting are decoupled on purpose: the tab decides where the
+# agent lives, set-parent only records the tracking relationship. Prints a JSON
+# summary on stdout so the caller can register the tracked agent.
 #
 # Usage:
 #   spawn-herdr-task.sh --slug SLUG --prompt-file PATH [options]
@@ -15,8 +16,8 @@
 #   --slug SLUG          Branch + worktree slug (required). Append the tracker
 #                        key for JIRA tasks, e.g. mock-scenario-dropdown-AIE-370.
 #   --prompt-file PATH   File whose contents become claude's initial prompt
-#                        (required). Passed as claude's positional arg, so
-#                        claude starts interactive with the prompt submitted.
+#                        (required). Pasted into the ready claude session and
+#                        submitted, so claude starts on the task right away.
 #   --title TITLE        Human agent name. Used BOTH as herdr's agent name and as
 #                        `claude --name`, so the herdr agent name doubles as the
 #                        agent's SendMessage address. No prefix. Capped to 29
@@ -97,10 +98,11 @@ if [ -z "$WORKSPACE" ]; then
 fi
 [ -n "$WORKSPACE" ] || die "empty workspace"
 
-# 3. create a dedicated tab (labeled with the title). A fresh tab always comes
-#    with a root shell pane; we launch the agent as a split of it and then close
-#    that shell (step 5) so the tab ends up holding only the agent.
-TAB_JSON="$(herdr tab create --workspace "$WORKSPACE" --label "$TAB_LABEL" --no-focus)"
+# 3. create a dedicated tab (labeled with the title), rooted in the worktree. A
+#    fresh tab comes with a root shell pane already sitting at its prompt in
+#    --cwd, which is exactly what `agent start` needs, so that pane becomes the
+#    agent's own pane and the tab ends up holding only the agent.
+TAB_JSON="$(herdr tab create --workspace "$WORKSPACE" --cwd "$WORKTREE" --label "$TAB_LABEL" --no-focus)"
 read -r NEW_TAB ROOT_SHELL <<EOF
 $(printf '%s' "$TAB_JSON" | python3 -c '
 import sys, json
@@ -110,14 +112,32 @@ print(r["tab"]["tab_id"], r["root_pane"]["pane_id"])
 EOF
 [ -n "$NEW_TAB" ] && [ -n "$ROOT_SHELL" ] || die "failed to parse tab create response"
 
-# 4. launch the agent in that tab. --tab targets the new tab; agent start splits
-#    its focused (root) pane, cd's to --cwd, and starts claude interactive with
-#    the prompt as claude's positional arg (single argv element over the socket,
-#    no shell re-parse - multiline prompts are safe).
+# 4. wait for that shell to reach its prompt before typing at it. While it is
+#    still running its startup files a subprocess owns the pane's foreground job,
+#    and agent start rejects such a pane as busy. Resolved against a concrete
+#    signal (the pane's foreground process is its own shell), not a sleep.
+for _ in $(seq 1 40); do
+  INFO="$(herdr pane process-info --pane "$ROOT_SHELL" 2>/dev/null)" || { sleep 0.25; continue; }
+  read -r FG SHELL_PID <<EOF
+$(printf '%s' "$INFO" | python3 -c '
+import sys, json
+p = json.load(sys.stdin)["result"]["process_info"]
+print(p.get("foreground_process_group_id") or "", p.get("shell_pid") or "")
+')
+EOF
+  [ -n "$FG" ] && [ "$FG" = "$SHELL_PID" ] && break
+  sleep 0.25
+done
+
+# 5. start claude in that root pane. agent start types the claude command line
+#    into the pane's shell prompt and blocks until claude is detected and ready
+#    for input. The prompt is deliberately NOT a claude argument: a large
+#    multiline argument typed into an interactive shell is fragile (line
+#    continuation, bracketed paste, paste chunking), so step 5 delivers it.
 #    `claude --name "$TITLE"` sets the session's display name to the SAME string
 #    herdr uses as the agent name, so the name in `herdr agent list` is also the
 #    SendMessage address for that agent.
-AGENT_JSON="$(herdr agent start "$TITLE" --tab "$NEW_TAB" --cwd "$WORKTREE" --no-focus -- claude --name "$TITLE" "$(cat "$PROMPT_FILE")")"
+AGENT_JSON="$(herdr agent start "$TITLE" --kind claude --pane "$ROOT_SHELL" --timeout 120000 -- --name "$TITLE")"
 read -r ROOT_PANE TAB_ID WORKSPACE AGENT_NAME <<EOF
 $(printf '%s' "$AGENT_JSON" | python3 -c '
 import sys, json
@@ -127,15 +147,25 @@ print(a["pane_id"], a["tab_id"], a["workspace_id"], a["name"])
 EOF
 [ -n "$ROOT_PANE" ] && [ -n "$TAB_ID" ] || die "failed to parse agent start response"
 
-# 5. close the leftover root shell so the tab holds only the agent pane, then
-#    register the agent under the orchestrator for native tracking. Parenting is
-#    a separate call because `agent start --parent` places (splits), it does not
-#    open a new tab.
-herdr pane close "$ROOT_SHELL" >/dev/null || die "failed to close root shell pane $ROOT_SHELL"
+# 6. deliver the prompt. agent start already returned only once claude was ready
+#    for input, so what remains is the paste race: an Enter fired in the same
+#    breath as the text gets coalesced into the bracketed paste and swallowed. So
+#    send-text the prompt, wait until a stable prefix of it shows up in the input
+#    (deterministic, no arbitrary sleep), then press Enter as a separate
+#    keystroke so it cannot merge with the paste.
+PROMPT_TEXT="$(cat "$PROMPT_FILE")"
+PROMPT_HEAD="${PROMPT_TEXT%%$'\n'*}"
+herdr pane send-text "$ROOT_PANE" "$PROMPT_TEXT" >/dev/null || die "failed to send prompt to pane $ROOT_PANE"
+herdr pane wait-output "$ROOT_PANE" --match "${PROMPT_HEAD:0:40}" --timeout 10000 >/dev/null 2>&1 || sleep 1
+herdr pane send-keys "$ROOT_PANE" Enter >/dev/null || die "failed to submit prompt in pane $ROOT_PANE"
+
+# 7. register the agent under the orchestrator for native tracking. Placement and
+#    parenting stay separate calls: the tab created in step 3 decides where the
+#    agent lives, and set-parent only records the tracking relationship.
 AGENT_PARENT="$(herdr agent set-parent "$ROOT_PANE" "$PARENT" | python3 -c 'import sys, json; print(json.load(sys.stdin)["result"]["agent"].get("parent",""))')" \
   || die "failed to set agent parent"
 
-# 6. machine-readable summary for the caller (task-tool registration).
+# 8. machine-readable summary for the caller (task-tool registration).
 #    tab_label = the actual tab label (carries the "T<N> - " prefix when
 #    --tab-number was set); root_pane = the agent's pane_id; parent = the
 #    orchestrator pane it is tracked under.
