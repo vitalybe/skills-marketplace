@@ -18,13 +18,14 @@
 #   --prompt-file PATH   File whose contents become claude's initial prompt
 #                        (required). Pasted into the ready claude session and
 #                        submitted, so claude starts on the task right away.
-#   --title TITLE        Human agent name. Used BOTH as herdr's agent name and as
-#                        `claude --name`, so the herdr agent name doubles as the
-#                        agent's SendMessage address. No prefix. Capped to 29
-#                        chars (under 30). Defaults to the slug (also capped).
+#   --title TITLE        Human title for the tab. A slugified form of it
+#                        (lowercase, kebab-case) is used BOTH as herdr's agent
+#                        name and as `claude --name`, so the herdr agent name
+#                        doubles as the agent's SendMessage address. No prefix.
+#                        Capped to 29 chars. Defaults to the slug.
 #   --tab-number N       Optional ordinal for the tab label. When set, the tab is
 #                        labeled "T<N> - <title>" (prefix on the TAB label only;
-#                        the agent name stays the raw title). Used by the
+#                        the agent name stays the title's slug). Used by the
 #                        orchestrator to number tabs by chronological spawn order.
 #   --parent TARGET      Parent pane/agent to register under. Default:
 #                        $HERDR_PANE_ID (the orchestrator's pane). Required -
@@ -63,15 +64,29 @@ command -v python3 >/dev/null 2>&1 || die "python3 not on PATH"
 [ -n "$PARENT" ] || die "no parent pane - set \$HERDR_PANE_ID or pass --parent <pane> (required to register a tracked child agent)"
 [ -n "$TITLE" ] || TITLE="$SLUG"
 
-# Cap the agent name under 30 chars (herdr uses it as the agent name).
+# Cap the title under 30 chars (it also seeds the agent name below).
 if [ "${#TITLE}" -gt 29 ]; then
   echo "spawn-herdr-task: title too long (${#TITLE} chars), truncating to 29" >&2
   TITLE="${TITLE:0:29}"
 fi
 
+# herdr agent names are identifiers, not labels: a lowercase leading letter,
+# then [a-z0-9_-] only, at most 32 characters. `agent start` rejects anything
+# else, which leaves the tab holding a bare shell and the task unrun. So the
+# title is slugified once here and used for BOTH the herdr agent name and
+# `claude --name`, keeping the two identical so the name in `herdr agent list`
+# is still the agent's SendMessage address. The tab label keeps the raw title.
+AGENT_ID="$(printf '%s' "$TITLE" | tr '[:upper:]' '[:lower:]' \
+  | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+case "$AGENT_ID" in
+  [a-z]*) ;;
+  *) AGENT_ID="task${AGENT_ID:+-$AGENT_ID}" ;;
+esac
+AGENT_ID="$(printf '%s' "$AGENT_ID" | cut -c1-32 | sed -E 's/-+$//')"
+
 # Tab label: the raw title, optionally prefixed "T<N> - " when --tab-number is
 # given. The prefix is on the TAB label only (what shows in the tab bar); the
-# agent name stays the raw TITLE so tracker reports read cleanly.
+# agent name stays $AGENT_ID so tracker reports read cleanly.
 TAB_LABEL="$TITLE"
 if [ -n "$TAB_NUMBER" ]; then
   case "$TAB_NUMBER" in
@@ -134,10 +149,10 @@ done
 #    for input. The prompt is deliberately NOT a claude argument: a large
 #    multiline argument typed into an interactive shell is fragile (line
 #    continuation, bracketed paste, paste chunking), so step 6 delivers it.
-#    `claude --name "$TITLE"` sets the session's display name to the SAME string
-#    herdr uses as the agent name, so the name in `herdr agent list` is also the
-#    SendMessage address for that agent.
-AGENT_JSON="$(herdr agent start "$TITLE" --kind claude --pane "$ROOT_SHELL" --timeout 120000 -- --name "$TITLE")"
+#    `claude --name "$AGENT_ID"` sets the session's display name to the SAME
+#    string herdr uses as the agent name, so the name in `herdr agent list` is
+#    also the SendMessage address for that agent.
+AGENT_JSON="$(herdr agent start "$AGENT_ID" --kind claude --pane "$ROOT_SHELL" --timeout 120000 -- --name "$AGENT_ID")"
 read -r ROOT_PANE TAB_ID WORKSPACE AGENT_NAME <<EOF
 $(printf '%s' "$AGENT_JSON" | python3 -c '
 import sys, json

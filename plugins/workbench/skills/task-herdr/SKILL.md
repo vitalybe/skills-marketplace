@@ -98,10 +98,10 @@ STOP and ask rather than guess.
 
 1. **Generate a slug and title** - a short descriptive kebab-case branch slug
    (for a tracker task, append the key, e.g. `mock-scenario-dropdown-AIE-370`).
-   The **title must be under 30 characters** - herdr uses it directly as the
-   agent's name (the script caps it defensively at 29 chars). Do NOT put a
-   `T<n> -` prefix in the title; the ordinal goes to `--tab-number` (below), which
-   prefixes the tab label only and leaves the agent name clean.
+   The **title must be under 30 characters** - a slugified form of it becomes
+   the agent's name (the script caps the title defensively at 29 chars). Do NOT
+   put a `T<n> -` prefix in the title; the ordinal goes to `--tab-number`
+   (below), which prefixes the tab label only and leaves the agent name clean.
 
 2. **Write the prompt to a temp file** per the template above.
 
@@ -120,7 +120,7 @@ STOP and ask rather than guess.
 
    Pass `--tab-number <n>` when a caller supplied a tab number, so the tab is
    labeled `T<n> - <title>`. The prefix lands on the **tab label** only; the
-   herdr agent name stays the raw title so tracker reports read cleanly.
+   herdr agent name stays the title's slug so tracker reports read cleanly.
 
    It prints a JSON summary (`slug`, `title`, `worktree`, `branch`,
    `workspace`, `tab_id`, `tab_label`, `root_pane`, `prompt_file`, `parent`).
@@ -131,18 +131,20 @@ STOP and ask rather than guess.
 ### Talking to / stopping a tab
 
 **Send messages with the `SendMessage` tool, not by typing into the pane.** A
-spawned tab is a real `claude` session started with `--name "<title>"`, so it is
-a peer you can message directly. Delivery is queued and drained by the receiver -
+spawned tab is a real `claude` session started with `--name "<title-slug>"`, so
+it is a peer you can message directly. Delivery is queued and drained by the receiver -
 no idle guard, no race with a working agent, no garbled keystrokes.
 
 Addressing (the herdr agent name IS the SendMessage name):
 
-1. Take the agent's **name** from the spawn JSON (`title`) or from
-   `herdr agent list` / `herdr agent children`.
+1. Take the agent's **name** from the spawn JSON (`title`, which reports the
+   slugified name herdr assigned) or from `herdr agent list` /
+   `herdr agent children`. Do not retype the human title - herdr agent names are
+   identifiers, so `Fix Login Bug` is registered as `fix-login-bug`.
 2. Call `ListAgents` to get that name's ` [ref]`. A peer that is not already in
    your conversation is refused on the bare name - the error itself hands you the
    ref, so re-sending with it is fine too.
-3. `SendMessage({to: "<title> [<ref>]", message: "..."})`.
+3. `SendMessage({to: "<name> [<ref>]", message: "..."})`.
 
 Two things `SendMessage` cannot do, which still go through the pane:
 
