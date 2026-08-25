@@ -37,7 +37,7 @@ Stop the chain any time with `TaskStop <task_id>`, or simply stop re-arming.
 
 ## Why the script is built the way it is (don't regress these)
 
-- **Resize / scroll immune.** It reads `herdr pane read <PANE> --source recent-unwrapped`, i.e. scrollback with soft-wraps joined - independent of pane width and scroll position. Reading `--source visible` instead makes every resize or scroll fire a false change. (This is also the transcript `herdr wait output` matches against.)
+- **Resize / scroll immune.** It reads `herdr pane read <PANE> --source recent-unwrapped`, i.e. scrollback with soft-wraps joined - independent of pane width and scroll position. Reading `--source visible` instead makes every resize or scroll fire a false change. (This is also the transcript `herdr pane wait-output` matches against.)
 - **Debounced.** On the first detected change it switches to 1s re-checks and only reports once the content is identical across a full interval - so you never wake on a half-drawn frame or a line the user is still typing. Reported output is tagged `CHANGED (settled)`.
 - **Empty-read guarded.** Transient/failed reads (empty output) are skipped so a momentary hiccup doesn't false-trigger.
 - **Bounded.** After `MAX_POLLS` idle polls it exits with a `no change after timeout` notice; just re-arm.
@@ -80,4 +80,4 @@ If the vault/wiki is involved, the `/workbench:wiki` skill covers where such pag
 
 ## One-shot waits
 
-If you only need to block until a *specific* string appears (not any change), prefer herdr's built-in `herdr wait output <PANE> --match "..." [--regex] --timeout <ms>` instead of this watcher. Use this skill when you want to react to *arbitrary* changes, screen by screen.
+If you only need to block until a *specific* string appears (not any change), prefer herdr's built-in `herdr pane wait-output <PANE> --match "..." [--regex] --timeout <ms>` instead of this watcher. Use this skill when you want to react to *arbitrary* changes, screen by screen.
