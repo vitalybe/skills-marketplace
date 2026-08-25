@@ -4,6 +4,13 @@
 # Output is plain stdout so it can be injected into a skill via mdexec.
 set -uo pipefail
 
+# Both call sites inject this as a skill's own `!`...`` block, where the harness
+# statically verifies the command string. A compound command there (`2>&1 ||
+# true`) cannot be verified in a worktree-isolated session, and the whole skill
+# is then refused - so this script folds its own stderr and always exits 0. The
+# MISS lines in the output are the signal; the exit code carries nothing.
+exec 2>&1
+
 missing=0
 say() { printf '%s\n' "$*"; }
 check() {
@@ -62,4 +69,3 @@ if [ "$missing" -eq 0 ]; then
 else
   say "Some dependencies are missing - see hints above. The flow needs these to run."
 fi
-exit "$missing"

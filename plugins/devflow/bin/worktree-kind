@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Print `main-repo` or `worktree` for the current checkout.
+#
+# A script rather than a `[ "$(...)" = "$(...)" ] && ... || ...` one-liner in a
+# SKILL.md: the harness statically verifies commands, and a worktree-isolated
+# session refuses a compound one it cannot verify - which reads as if the skill
+# itself were broken.
+set -uo pipefail
+
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || common=''
+own=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null) || own=''
+
+if [ -z "$common" ] || [ -z "$own" ]; then
+  echo "not-a-repo"
+  exit 1
+fi
+
+# A linked worktree's own git dir is .git/worktrees/<name> under the shared one.
+if [ "$common" = "$own" ]; then
+  echo "main-repo"
+else
+  echo "worktree"
+fi

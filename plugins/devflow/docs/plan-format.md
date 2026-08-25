@@ -42,7 +42,7 @@ One H1 (the task summary), then sections as the flow progresses:
 (1-2 sentences: what we want and why)
 
 ## Design                 (optional)
-(the Claude Design link + the key UX/UI decisions taken)
+(the design target - Paper file or Claude Design link - and the decisions)
 
 ## Plan
 
@@ -292,8 +292,8 @@ Each section has two subsections:
 - **Requirements phase** creates the file (scaffold, `## Requirements
   Brief` up top, full `## Requirements` at the bottom). If a plan file
   already exists for the task, update it in place.
-- **Design phase** (UX/UI work only) writes `## Design` - the Claude Design
-  link and the key UX/UI decisions.
+- **Design phase** (UX/UI work only) writes `## Design` - the design
+  target (Paper file or Claude Design link) and the key UX/UI decisions.
 - **Plan phase** fills in `## Plan` (all five subsections), `## Tests`,
   `## Acceptance`.
 - **Plan review** appends to `## Plan review findings`.

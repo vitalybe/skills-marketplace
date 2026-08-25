@@ -31,10 +31,11 @@ If errors occur, fix them and re-run until all pass. Get user approval for fixes
 
 ### Detect environment
 
-Determine whether the current checkout is a worktree or the main repo:
+Determine whether the current checkout is a worktree or the main repo - it
+prints `main-repo` or `worktree`:
 
 ```bash
-[ "$(git rev-parse --git-common-dir)" = "$(git rev-parse --git-dir)" ] && echo "main-repo" || echo "worktree"
+${CLAUDE_PLUGIN_ROOT}/bin/worktree-kind
 ```
 
 ### Pick merge strategy
@@ -76,8 +77,25 @@ Read `use-pull-requests` from `<project-config>` loaded in the common instructio
 ### Direct merge path
 
 - Merge locally: `${CLAUDE_PLUGIN_ROOT}/bin/git-merge-me-local`
-- If this checkout is a worktree, remove it with plain git once the merge
-  succeeds: from the main checkout, `git worktree remove <path>`, then
-  `git branch -d <branch>` (only if fully merged; report instead of forcing).
+- If this checkout is a worktree, remove it once the merge succeeds - see
+  **Removing the worktree** below.
 - `${CLAUDE_PLUGIN_ROOT}/bin/tasks set-state <KEY> Done`
 - Report completion: merged to main.
+
+## Removing the worktree
+
+Only after the merge succeeded.
+
+1. **Leave it first.** A session isolated in the worktree cannot run git
+   against the main checkout - every such command is refused, and the script
+   below refuses too. Call `ExitWorktree({ action: "keep" })` (load it with
+   `ToolSearch` if needed); `keep` because step 2, not the tool, is what
+   deletes it.
+2. **Remove it:**
+
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/bin/worktree-remove <path>
+   ```
+
+   Report what it printed. If it refuses, relay that rather than forcing past
+   it.

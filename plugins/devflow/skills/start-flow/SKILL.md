@@ -12,7 +12,7 @@ between those sub-agents and the user.
 ## Preflight
 
 <dependencies>
-!`${CLAUDE_PLUGIN_ROOT}/bin/doctor 2>&1 || true`
+!`${CLAUDE_PLUGIN_ROOT}/bin/doctor`
 </dependencies>
 
 Any `MISS` → stop and tell the user what to install (use the hint shown)
@@ -27,7 +27,7 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 ## Orchestrator markers
 
 <orchestrator-run>
-!`[ -n "${ORCHESTRATOR_ENVIRONMENT:-}" ] && echo yes || echo no`
+!`${CLAUDE_PLUGIN_ROOT}/bin/orchestrator-env`
 </orchestrator-run>
 
 - `no` (ordinary session): skip every step below that invokes an
@@ -79,9 +79,9 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 6. **When the last phase is done:** report what the phases produced (plan
    path, commits, PR url), orchestrated or not. Then, orchestrated only,
    invoke `aie-orchestrator-skills:orchestrator-flow-done` and emit
-   `MARKER-DONE` as that message's final line - only once every phase
-   reported complete; if one failed or is blocked, report that and emit no
-   done marker.
+   `ORCHESTRATOR_MARKER-DONE` as that message's final line - only once every
+   phase reported complete; if one failed or is blocked, report that and emit
+   no done marker.
 
 ## Spawn prompt
 

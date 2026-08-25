@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Remove a linked worktree and delete the branch it had checked out.
+#
+# Usage: worktree-remove <worktree-path>
+#
+# Run it from the main checkout, after the branch has been merged. It refuses
+# rather than guesses: a dirty worktree, or being run from inside the worktree
+# it is asked to delete, is an error. An unmerged branch is left in place.
+#
+# `git worktree remove` fails outright on a worktree holding submodules
+# ("fatal: working trees containing submodules cannot be moved or removed").
+# Git skips that check under --force, so the retry below is the whole fix - and
+# --force takes the admin dir and the worktree's private submodule git dirs
+# (.git/worktrees/<name>/modules/...) with it, leaving no prune to do. Note that
+# --force also skips the dirty check, which is why this script does it first and
+# will not proceed without it. `git submodule deinit` is NOT the answer: it
+# clears the submodule directories but the index still carries the gitlinks, so
+# the plain remove keeps failing.
+set -uo pipefail
+
+die() { printf 'worktree-remove: %s\n' "$*" >&2; exit 1; }
+
+path="${1:-}"
+[ -n "$path" ] || die "usage: worktree-remove <worktree-path>"
+[ -d "$path" ] || die "no such directory: $path"
+
+abs=$(cd "$path" && pwd -P) || die "cannot resolve $path"
+here=$(pwd -P)
+case "$here" in
+  "$abs" | "$abs"/*) die "run this from the main checkout, not from inside $abs" ;;
+esac
+
+[ "$(cd "$abs" && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+  != "$(cd "$abs" && git rev-parse --path-format=absolute --git-dir 2>/dev/null)" ] \
+  || die "$abs is not a linked worktree"
+
+dirty=$(git -C "$abs" status --porcelain 2>&1) || die "cannot read status of $abs"
+if [ -n "$dirty" ]; then
+  printf 'worktree-remove: not removing %s - it has uncommitted changes:\n' "$abs" >&2
+  printf '%s\n' "$dirty" | sed 's/^/  /' >&2
+  exit 1
+fi
+
+branch=$(git -C "$abs" rev-parse --abbrev-ref HEAD 2>/dev/null) || branch=''
+head=$(git -C "$abs" rev-parse --short HEAD 2>/dev/null) || head='?'
+
+if git worktree remove "$abs" 2>/dev/null; then
+  echo "removed worktree: $abs"
+elif git worktree remove --force "$abs"; then
+  echo "removed worktree: $abs (forced - the repo has submodules)"
+else
+  die "could not remove $abs"
+fi
+
+if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+  echo "kept nothing else: the worktree was on a detached HEAD at $head"
+  exit 0
+fi
+
+# `git branch -d` refuses an unmerged branch on its own - that is the guard, so
+# never reach for -D here.
+if reason=$(git branch -d "$branch" 2>&1); then
+  echo "deleted branch: $branch (was $head, fully merged)"
+else
+  echo "kept branch: $branch (at $head) - git refuses to delete it:" >&2
+  printf '%s\n' "$reason" | sed 's/^/  /' >&2
+fi

@@ -21,7 +21,7 @@ stay with the user.
 1. **Require a worktree.** This skill runs inside an existing worktree; it does
    not create one. Refuse to run from the main repo:
    ```bash
-   [ "$(git rev-parse --git-common-dir)" = "$(git rev-parse --git-dir)" ] && echo "main-repo" || echo "worktree"
+   ${CLAUDE_PLUGIN_ROOT}/bin/worktree-kind
    ```
    If this prints `main-repo`, **stop**. Tell the user to create and enter a
    worktree first (e.g. `git worktree add .claude/worktrees/pr-<N>` then the

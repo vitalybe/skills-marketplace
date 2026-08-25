@@ -29,13 +29,9 @@ or errored, or to get fresh state after you stash, switch, or `cd`.
 !`git rev-parse --show-toplevel 2>&1`
 </toplevel>
 
-<git-dir>
-!`git rev-parse --git-dir 2>&1`
-</git-dir>
-
-<git-common-dir>
-!`git rev-parse --git-common-dir 2>&1`
-</git-common-dir>
+<checkout-kind>
+!`${CLAUDE_PLUGIN_ROOT}/bin/worktree-kind`
+</checkout-kind>
 
 <current-branch>
 !`git rev-parse --abbrev-ref HEAD 2>&1`
@@ -50,7 +46,7 @@ or errored, or to get fresh state after you stash, switch, or `cd`.
 </worktree-list>
 
 <default-branch-from-origin-head>
-!`git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@'`
+!`git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null`
 </default-branch-from-origin-head>
 
 <local-default-branch-candidates>
@@ -81,13 +77,13 @@ or errored, or to get fresh state after you stash, switch, or `cd`.
 
 Work from the blocks above:
 
-- **Already in a linked worktree?** True when `<git-dir>` differs from
-  `<git-common-dir>`.
+- **Already in a linked worktree?** `<checkout-kind>` is `worktree`.
 - **Current branch** = `<current-branch>`.
-- **Default branch** = `<default-branch-from-origin-head>`. If that is empty
-  (`origin/HEAD` is not set in this clone), fall back to whichever of `main` /
-  `master` / `trunk` appears in `<remote-default-branch-candidates>`. If both
-  `main` and `master` exist remotely, or neither does, ask the user rather than
+- **Default branch** = `<default-branch-from-origin-head>` with its `origin/`
+  prefix dropped (the block prints `origin/main`; the branch is `main`). If it
+  is empty (`origin/HEAD` is not set in this clone), fall back to whichever of
+  `main` / `master` / `trunk` appears in `<remote-default-branch-candidates>`.
+  If both `main` and `master` exist remotely, or neither does, ask rather than
   guessing - picking wrong here resets the wrong branch.
 - **Dirty?** `<status-short>` is non-empty.
 - **Commits to carry** = `<commits-ahead-of-origin-head>` when the default came

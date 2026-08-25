@@ -10,7 +10,7 @@ Reads and updates `project-config.toml` in the project root. One key per questio
 ## Step: Load Current Config
 
 <current-config>
-!`cat "$(git rev-parse --show-toplevel)/project-config.toml" 2>/dev/null || echo "[[No project-config.toml yet - will create one]]"`
+!`${CLAUDE_PLUGIN_ROOT}/bin/project-config "[[No project-config.toml yet - will create one]]"`
 </current-config>
 
 If the user passed arguments naming specific keys to (re)configure, only touch those. Otherwise, prompt for every key below that is missing from the current config.
