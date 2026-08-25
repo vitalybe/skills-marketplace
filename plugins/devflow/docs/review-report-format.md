@@ -45,6 +45,10 @@ never opened the repo must be able to answer the question.
 - **Issue.** What happens, and the decision it forces - the situation from the
   product's side, then the choice being put to the user. Keep code out of it:
   no file paths, no symbol names above the footnote.
+- **Why it's not already fixed.** One sentence on why the agent is asking
+  instead of just doing it - out of scope, needs a call only the user can make,
+  changes a contract, or the reviewers disagreed. Never "it seemed risky":
+  name the thing that made it a decision.
 - **Options.** Two to four choices as a bulleted list, one per line, each
   opening with `**(a) Short name.**` - a 1-3 word name that doubles as the
   answer label - then what that choice costs. When an option
@@ -54,12 +58,12 @@ never opened the repo must be able to answer the question.
   do-nothing option ("ship it and see", "leave it") whenever one exists.
 - **If we don't pick.** What goes wrong while this stays open.
 - **Technical.** The one place code lives: locations (linkified as
-  `[file.ts:123](path/to/file.ts:123)`), symbols, the reviewer source(s), and
-  why the fix wasn't applied. Render as `<sub>Technical: ... Source: ...</sub>`.
+  `[file.ts:123](path/to/file.ts:123)`), symbols, and the reviewer source(s).
+  Render as `<sub>Technical: ... Source: ...</sub>`.
 
 Keep it short. The whole finding fits on a screen: **Issue** at most four
-sentences, each **Options** entry at most two, **If we don't pick** one or two,
-the footnote two or three. If a field wants more, either it is two findings or
+sentences, **Why it's not already fixed** exactly one, each **Options** entry at
+most two, **If we don't pick** one or two, the footnote two or three. If a field wants more, either it is two findings or
 the surplus belongs in the footnote. Reviewer disagreements resolve into the
 options - they are not narrated.
 
@@ -111,6 +115,12 @@ gets carries the body read back from the plan. The plan entries reuse the
 severity emoji, `Q<n>` ids, fields, and footnote above, so a finding carries the
 same id in the plan, at the gate, and in the answers coming back.
 
+**Findings go one heading level deeper in the plan.** A chat report heads each
+finding at `###`, but in the plan they sit inside `### Unhandled` or `###
+Handled`, so head them at `####` there - at `###` they render as siblings of
+`### Unhandled` and fall out of the section that owns them. Nothing else about
+the block changes.
+
 - **Applied findings never enter the plan.** Findings the agent fixed itself
   (the Apply tier) appear in the chat report only.
 - **Decision-needed findings are written to `### Unhandled`** before they go to
@@ -145,6 +155,9 @@ submitted. Someone spends fifteen minutes filling in checkout, hits Pay, and
 lands on the login screen with an empty cart. Does time spent in a form count
 as being active?
 
+**Why it's not already fixed.** It changes when every route on the site extends
+a session, not just checkout, so it is a product call rather than a bug fix.
+
 **Options.**
 
 - **(a) Refresh on submit.** Any submit extends the session. The common case stops happening and nothing else changes.
@@ -154,7 +167,7 @@ as being active?
 **If we don't pick.** Slow checkouts keep failing silently. In the funnel it
 reads as abandonment, so nobody goes looking for the bug.
 
-<sub>Technical: [src/session.ts:88](src/session.ts:88) - `touch()` runs only in the `GET` middleware. Not applied: changes session semantics for every route. Source: official-anthropic-review-skill, codex.</sub>
+<sub>Technical: [src/session.ts:88](src/session.ts:88) - `touch()` runs only in the `GET` middleware. Source: official-anthropic-review-skill, codex.</sub>
 
 ---
 
@@ -166,6 +179,9 @@ tier, a promo, a regional rule - has to be written twice. Miss one and the
 customer sees one price and is charged another. Do we pay to keep them in sync,
 or pay to merge them?
 
+**Why it's not already fixed.** Any of the three answers changes the API
+contract or the build, so none of them is the agent's to pick.
+
 **Options.**
 
 - **(a) One source on the server.** The cart asks for a fresh price on every change. One place to edit pricing forever, at the cost of a round trip and a visible lag on slow connections.
@@ -175,7 +191,7 @@ or pay to merge them?
 **If we don't pick.** The next pricing change is the one that ships a
 mismatched price, and we hear about it from a customer.
 
-<sub>Technical: [src/pricing.ts:120](src/pricing.ts:120) and [web/cart.ts:64](web/cart.ts:64). Not applied: needs a contract decision. Source: ponytail.</sub>
+<sub>Technical: [src/pricing.ts:120](src/pricing.ts:120) and [web/cart.ts:64](web/cart.ts:64). Source: ponytail.</sub>
 
 ---
 
