@@ -89,7 +89,7 @@ Triage each merged finding:
 
 Return, as data (not a rendered report):
 
-- The **triaged findings** using the shared format's severity tiers and
+- The **triaged findings** using the shared format's severity levels and
   Apply / Decision-needed split, each tagged with its `source`(s).
 
   <report-format>
