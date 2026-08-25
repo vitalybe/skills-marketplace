@@ -133,7 +133,7 @@ done
 #    into the pane's shell prompt and blocks until claude is detected and ready
 #    for input. The prompt is deliberately NOT a claude argument: a large
 #    multiline argument typed into an interactive shell is fragile (line
-#    continuation, bracketed paste, paste chunking), so step 5 delivers it.
+#    continuation, bracketed paste, paste chunking), so step 6 delivers it.
 #    `claude --name "$TITLE"` sets the session's display name to the SAME string
 #    herdr uses as the agent name, so the name in `herdr agent list` is also the
 #    SendMessage address for that agent.
