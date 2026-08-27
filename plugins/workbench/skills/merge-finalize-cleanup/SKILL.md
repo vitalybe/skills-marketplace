@@ -80,7 +80,7 @@ branch or `HEAD` (detached) - there is nothing to land.
 
 Run the bundled script, which creates the PR if `<pr-state>` shows none,
 rebases onto the base branch and force-pushes, enables auto-merge, and polls
-until the PR merges:
+until the PR merges - re-rebasing on its own whenever the base moves under it:
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/skills/merge-finalize-cleanup/pr-land.sh
@@ -89,14 +89,28 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/merge-finalize-cleanup/pr-land.sh
 This blocks until the PR lands or CI fails, which can take many minutes: run it
 **in the background** and report the outcome rather than waiting idle.
 
+**Never pipe it through `tail` or `head`.** A pipeline's exit status is the last
+command's, so a failed run reports as success and you will report a merge that
+never happened. Let it write straight to its output file and read that.
+
 Tunables: `PR_LAND_POLL_INTERVAL` (default 3s), `PR_LAND_TIMEOUT` (default
-1800s).
+1800s), `PR_LAND_MAX_REBASES` (default 5).
 
 The script is the source of truth for this route. If the flow needs to change,
 edit the script - don't reimplement it in the conversation.
+`pr-land-test.sh` beside it covers the poll loop's check-verdict parsing; run it
+after touching that jq program.
 
-If it exits non-zero, stop: report the failure (rebase conflict, CI failure,
-closed PR, timeout) and leave the worktree alone. Do not retry blindly.
+If it exits non-zero, stop: report the failure and leave the worktree alone. Do
+not retry blindly - each exit means something different:
+
+| Exit message | What happened |
+| --- | --- |
+| `conflicts with origin/<base>` | The PR needs a real conflict resolution. Hand it back. |
+| `CI checks failed: <names>` | A check reached a conclusive failure. The names are the ones that failed. |
+| `fell behind ... N times` | The base branch moves faster than CI completes. Not your change's fault. |
+| `timed out ... gh could not reach GitHub` | A sustained network/API outage, not a CI verdict. |
+| `timed out after Ns waiting` | Comes with a `checks:` tally. A check stuck `QUEUED`, or a required check **absent** from the tally, is CI infrastructure - check `gh run list` for `startup_failure` before suspecting the branch. |
 
 ## 4. Clean up the worktree
 
