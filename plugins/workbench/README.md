@@ -15,7 +15,7 @@ Invoked as `/workbench:<name>`.
 | `skill-improve-session` | Review a session transcript to find and fix skill/doc/permission failures; bundles its own parser. |
 | `browser-automation-explore-and-script` | Record a web flow with Playwright codegen, then translate it into a reliable replayable script. |
 | `task-jira` | Read, create, edit, comment, transition, and search JIRA issues via the `tasks` CLI. |
-| `task-obsidian` | List, open, and create personal to-dos in the Obsidian vault via `obsidian-tasks`. |
+| `task-obsidian` | List, open, and create personal to-dos in the Obsidian vault - plain `- [ ]` lines in the notes, found with ripgrep. |
 | `wiki` | Read from and write to the personal Obsidian knowledge vault (routes via the vault's own `CLAUDE.md`). |
 | `schedule-work-meeting` | Schedule a meeting end-to-end: resolve attendees, find a free slot, open a prefilled Outlook invite. |
 | `orchestrate-agents` | Manager-mode: spawn several subagents in their own worktrees, each taking one whole task end-to-end (via devflow), coordinating waves and serializing merges. |
@@ -31,7 +31,7 @@ The skill **files** ship with the plugin; their **runtimes, CLIs, and credential
 | Skill | External dependency |
 |---|---|
 | `task-jira` | the `tasks` CLI (from the ai-enablement repo) on `PATH`; a JIRA API token in the macOS keychain (`jira-api-token`). |
-| `task-obsidian` | the `obsidian-tasks` CLI (`~/hq/bin/obsidian-tasks`); `$OBSIDIAN_VAULT`. |
+| `task-obsidian` | `rg`; `$OBSIDIAN_VAULT`. |
 | `wiki` | an Obsidian vault at `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`) with its own routing `CLAUDE.md`. |
 | `schedule-work-meeting` | the Microsoft 365 + Slack MCP connectors; a browser logged into Outlook Web. |
 | `skill-improve-session` | `node` + `pnpm` (installs the bundled parser deps on first run). |

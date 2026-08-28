@@ -63,5 +63,5 @@ frontmatter validity, session logging, attachments, and keeping
 
 If a request mixes knowledge + a task (e.g. meeting notes that imply
 follow-ups), the vault `CLAUDE.md` meeting route already covers it -
-follow it (file the notes, then create task rows via
-`data/tasks/structure.md`).
+follow it (file the notes, then add a `- [ ]` line under `## Tasks` on
+the page the item concerns, per `data/tasks/structure.md`).
