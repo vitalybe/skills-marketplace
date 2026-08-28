@@ -20,7 +20,7 @@ grep every time you need it. Nothing stores it, so nothing can go stale.
 
 The vault root is `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`). The
 authoritative description of the format lives in the vault at
-`data/tasks/structure.md`; read it if anything below is ambiguous.
+`meta/Task Format.md`; read it if anything below is ambiguous.
 
 ## Where a task lives
 
@@ -35,8 +35,8 @@ Three destinations, in this order of preference:
 3. **`wiki/work/drivenets/Work Tasks.md`** - a loose work item with no
    project note.
 
-Never create a `misc` page, and never write under `data/tasks/` - that
-folder is a frozen archive of the old system.
+Never create a `misc` page, and never create a file per task - the old
+`data/tasks` table no longer exists.
 
 ## Line format
 
@@ -137,9 +137,8 @@ pick.
 
 ## Pitfalls
 
-- **Don't grep `data/`.** `data/tasks/data/` is the frozen archive of the
-  old system and `data/` generally holds ledger rows, not tasks. Always
-  scope to `wiki/` and `shared/`, and exclude `_attachments/`.
+- **Don't grep `data/`.** It holds ledger rows, not tasks. Always scope to
+  `wiki/` and `shared/`, and exclude `_attachments/`.
 - **Checklists are not tasks.** A packing list, a game guide, or a recipe
   uses the same `- [ ]` syntax. Judge by the page, not the line - if the
   page is a checklist, its items are steps, not to-dos.
