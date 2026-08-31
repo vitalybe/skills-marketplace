@@ -27,15 +27,18 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 ## Orchestrator markers
 
 <orchestrator-run>
-!`${CLAUDE_PLUGIN_ROOT}/bin/orchestrator-env`
+!`${CLAUDE_PLUGIN_ROOT}/../../aie-orchestrator-skills/*/bin/orchestrator-env 2>/dev/null || echo "detection-unavailable"`
 </orchestrator-run>
 
-- `no` (ordinary session): skip every step below that invokes an
+- **`no`** (ordinary session): skip every step below that invokes an
   `aie-orchestrator-skills:` skill, step 5 included, as if unwritten -
   nothing pauses before close. Everything else runs unchanged, the final
   completion report included.
-- `yes`: those steps are part of the flow. Emit every marker yourself, at
+- **`yes`**: those steps are part of the flow. Emit every marker yourself, at
   top level - one emitted inside a sub-agent never reaches the backend.
+- **`detection-unavailable`**: `aie-orchestrator-skills` is not installed, so
+  there is nothing to emit markers to. Treat as `no`, and say so once:
+  *orchestrator detection unavailable - running without markers.*
 
 ## Procedure
 
@@ -78,8 +81,7 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 
 6. **When the last phase is done:** report what the phases produced (plan
    path, commits, PR url), orchestrated or not. Then, orchestrated only,
-   invoke `aie-orchestrator-skills:orchestrator-flow-done` and emit
-   `ORCHESTRATOR_MARKER-DONE` as that message's final line - only once every
+   invoke `aie-orchestrator-skills:orchestrator-flow-done` - only once every
    phase reported complete; if one failed or is blocked, report that and emit
    no done marker.
 
