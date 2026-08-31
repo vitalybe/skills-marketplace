@@ -47,7 +47,7 @@ guess its rules here; read them fresh each time so they never drift.
    named binary like `create-contact` or `create-calendar-event`).
 
 The vault `CLAUDE.md` is authoritative for everything downstream -
-routing via `Index.md`, `meta/People.md` / `meta/Tags.md`, YAML
+routing via `Index.md`, `meta/people.md` / `meta/Tags.md`, YAML
 frontmatter validity, session logging, attachments, and keeping
 `Index.md` in sync. Follow it; don't restate its rules here.
 
