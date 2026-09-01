@@ -41,6 +41,14 @@ chars) - and use that exactly as you would the injected path.
 
 Plan file shape: `${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`.
 
+**Angle brackets are HTML.** GitHub renders `<void>`, `<slug>`, `<Toolbar />`
+as tags and silently swallows them, so anything carrying `<` or `>` goes in
+backticks: `` `Promise<void>` ``, `` `temp/<slug>` ``, `` `Map<string, T>` ``.
+Where it can't be code - a placeholder inside a bolded heading or a link
+label - escape it as `\<slug\>`. `<details>`/`<summary>` are the only raw
+HTML tags the plan uses. This applies to every section you write, findings
+bodies included.
+
 ## Gates
 
 A gate is any point where the phase needs user input or approval.
