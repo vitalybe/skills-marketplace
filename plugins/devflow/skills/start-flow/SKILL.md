@@ -24,22 +24,6 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
 </common-instructions>
 
-## Orchestrator markers
-
-<orchestrator-run>
-!`${CLAUDE_PLUGIN_ROOT}/../../aie-orchestrator-skills/*/bin/orchestrator-env 2>/dev/null || echo "detection-unavailable"`
-</orchestrator-run>
-
-- **`no`** (ordinary session): skip every step below that invokes an
-  `aie-orchestrator-skills:` skill, step 5 included, as if unwritten -
-  nothing pauses before close. Everything else runs unchanged, the final
-  completion report included.
-- **`yes`**: those steps are part of the flow. Emit every marker yourself, at
-  top level - one emitted inside a sub-agent never reaches the backend.
-- **`detection-unavailable`**: `aie-orchestrator-skills` is not installed, so
-  there is nothing to emit markers to. Treat as `no`, and say so once:
-  *orchestrator detection unavailable - running without markers.*
-
 ## Procedure
 
 1. **Map the phases.** Spawn `/devflow:_internal-step-phase-mapping` in a
@@ -53,13 +37,10 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
    a task complete only when that phase's sub-agent reports the phase done.
 
 3. **Run the phases**, one at a time, in the returned order. For each:
-   1. Invoke `aie-orchestrator-skills:orchestrator-phase` with the phase
-      name title-cased (`Requirements`, `Design`, `Plan`, `Code`, `Close`)
-      and emit its marker before the sub-agent starts.
-   2. Run the phase in its own sub-agent: the mapping's skill, on the
+   1. Run the phase in its own sub-agent: the mapping's skill, on the
       mapping's model, with the spawn prompt below.
-   3. While it needs input, relay its gates (see **Relaying gates**).
-   4. On its completion report: mark that phase's task complete, then start
+   2. While it needs input, relay its gates (see **Relaying gates**).
+   3. On its completion report: mark that phase's task complete, then start
       the next phase. If it reports failure or blocked: stop, leave that
       phase's task incomplete, and report to the user.
 
@@ -69,21 +50,9 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
    line when it scheduled one, otherwise from its `design-row:` line - never
    from a value you supply yourself.
 
-5. **When `code` reports complete and `close` is still pending:** block the
-   merge on a human. Invoke `aie-orchestrator-skills:orchestrator-gate` with
-   email `vbelman@drivenets.com` and reason `devflow sign-off before close`,
-   emit its marker, and **end the turn** - no close sub-agent, no further
-   edits, nothing after the marker implying more work this turn. Not the
-   code phase's own approval: that settles the implementation, this blocks
-   the merge. When told it cleared, re-run this skill from the top; the
-   mapping returns `close` as the only phase left. The fast path has no
-   `close` and never gates here.
-
-6. **When the last phase is done:** report what the phases produced (plan
-   path, commits, PR url), orchestrated or not. Then, orchestrated only,
-   invoke `aie-orchestrator-skills:orchestrator-flow-done` - only once every
-   phase reported complete; if one failed or is blocked, report that and emit
-   no done marker.
+5. **When the last phase is done:** report what the phases produced - plan
+   path, commits, PR url. If a phase failed or is blocked, report that
+   instead.
 
 ## Spawn prompt
 
