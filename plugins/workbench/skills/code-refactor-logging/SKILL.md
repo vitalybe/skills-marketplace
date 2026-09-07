@@ -5,6 +5,8 @@ description: Refactor logging and console output to follow structured logging st
 
 # Refactor: Structured Logging
 
+For long-running Node scripts that a human watches (spinners, prompts) and that also need a run log for agents, use `/workbench:code-refactor-pretty-cli` instead.
+
 Refactor logging and user-facing output to follow a consistent structured pattern. This pattern applies across languages (bash, JS/TS, Python, Go, etc.) — adapt the implementation to the language, but keep the principles and color scheme identical.
 
 ## The Pattern

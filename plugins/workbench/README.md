@@ -12,6 +12,7 @@ Invoked as `/workbench:<name>`.
 | `git-merge-local` | Merge the current branch into the default branch locally with `--no-ff`, including worktree cleanup. |
 | `code-varlock` | Set up, extend, or debug a varlock env schema (validation, type generation, 1Password secrets). |
 | `code-refactor-logging` | Refactor console/log output to structured logging standards (levels, colors, prefixes). |
+| `code-refactor-pretty-cli` | Give a CLI script polished interactive output - prompts, spinners, and progress via `@clack/prompts`. |
 | `skill-improve-session` | Review a session transcript to find and fix skill/doc/permission failures; bundles its own parser. |
 | `browser-automation-explore-and-script` | Record a web flow with Playwright codegen, explore it against the operator's Chrome (browser-harness) or a Playwright profile, then commit a replayable script that verifies its output. |
 | `task-jira` | Read, create, edit, comment, transition, and search JIRA issues via the `tasks` CLI. |
