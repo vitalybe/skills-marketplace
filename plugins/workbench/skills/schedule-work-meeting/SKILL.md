@@ -33,6 +33,8 @@ prefilled, ready-to-send Outlook invite.
 - `mcp__claude_ai_Slack__slack_search_users` - resolve a name to a person + email.
 - `mcp__claude_ai_Microsoft_365__find_meeting_availability` - mutual free/busy.
 - `mcp__claude_ai_Microsoft_365__outlook_calendar_search` - your existing events (for clustering).
+- `scripts/free_windows.py` - folds the raw availability probes into ranked
+  local-time windows (see step 3).
 - `/Users/vbelman/obsidian/meta/people.md` - disambiguation registry (roles/aliases).
 - The system default browser (`open <url>`) - to launch the prefilled invite.
 
@@ -70,8 +72,8 @@ manufacture false negatives that read like hard facts: a real session reported
 off 90-minute probes, and a 30-minute rescan of the same days found several
 fully-free windows.
 
-So **always probe with `duration: 30`**, whatever the meeting length, and do the
-block-fitting yourself.
+So **always probe with `duration: 30`**, whatever the meeting length, and let
+`scripts/free_windows.py` do the block-fitting.
 
 - One call **per candidate day**, with `afterDateTime`/`beforeDateTime` bounding
   that day's working window **in UTC** (Israel 09:00-19:00 local = 06:00-16:00Z
@@ -80,13 +82,21 @@ block-fitting yourself.
 - Per-day matters because the API knows nothing about working hours and will
   happily offer 03:00. Hand it a multi-day range and day one's night hours eat
   all 50 candidates before it ever reaches day two.
-- **A slot missing from the response means someone is busy then.** Read the
-  gaps, not just the rows you got back.
-- Each row carries an `availability` per attendee (`free` / `tentative` /
-  `busy` / `oof`) plus `organizerAvailability` for the user. A slot is clean
-  only when every one of those says `free`.
-- Stitch consecutive clean slots into runs, then keep the runs at least as long
-  as the meeting.
+- Save each response verbatim to a scratch file (outside the repo), then hand
+  the whole set to the script:
+
+  ```bash
+  python3 scripts/free_windows.py --duration 90 --window 09:00-19:00 scan-*.json
+  ```
+
+  It shifts to local time with DST, treats **a slot missing from the response as
+  busy**, takes the worst status across every attendee plus
+  `organizerAvailability`, merges consecutive slots, clamps to working hours,
+  and prints the runs that are long enough - split into `EVERYONE FREE` and
+  `ONE OR MORE TENTATIVE`, the latter naming who holds the slot. Read the
+  windows off its output instead of doing interval arithmetic in your head;
+  that is where hand-scanning quietly goes wrong. `--selftest` checks the
+  stitcher, `--tz` moves it off `Asia/Jerusalem`.
 
 For clustering, also call `outlook_calendar_search` (query `*`) for **your own**
 events across the candidate days - free/busy tells you a slot is open, not what
