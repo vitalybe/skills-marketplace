@@ -46,7 +46,7 @@ gate relaying. These rules apply while you follow it:
 ## Step 3: The sign-off gate
 
 Block the merge on a human. Invoke `aie-orchestrator-skills:orchestrator-gate`
-with email `vbelman@drivenets.com` and reason `devflow sign-off before close`,
+with email `rchocron@drivenets.com` and reason `devflow sign-off before close`,
 emit its marker, and **end the turn** - no close sub-agent, no further edits,
 nothing after the marker implying more work this turn.
 

@@ -29,10 +29,18 @@ The rubric a plan is judged against. Structure and headings are specified in
 ## Testing strategy
 
 - Every capability the task adds or changes is covered by at least one named test level.
-- Levels are appropriate - unit for logic, integration for wiring, e2e for user-facing lifecycles, manual only when automation genuinely can't reach.
+- Each behavior is tested at the **lowest level that can exercise it**, and not re-tested above that except for the single path that proves the wiring. If a unit test would catch the bug, an e2e test for it is waste.
+- Distribution follows from that rule: most cases are unit, a handful are integration, e2e is one spec per user-facing flow (not per case), manual is the exception.
 - Each concern group in Detailed Implementation has its `Tests:` sub-bullet, with happy path plus the edge cases that matter.
 - Deliberate gaps are stated with a reason, not left implicit.
 - The `## Tests` rollup lists every test file the plan introduces or touches.
+
+### Which level when
+
+- **Unit** - pure logic reachable without I/O: parsing, transforms, validation, reducers, heuristics, formatting. Every branch and edge case belongs here. Default for anything you can call directly.
+- **Integration** - the seam between two real parts: a route handler against a temp DB, a pipeline step with the external agent mocked, a component with its store. One happy path plus the failure mode of the boundary (timeout, bad payload, missing row). Mock only external seams - paid APIs, third-party agents, push/deploy; everything owned by the repo runs for real.
+- **E2E (browser)** - a **new or changed user-facing flow**: a new screen, a multi-step flow, a changed primary action, or a lifecycle the user actually walks (create → see → edit → persists). One spec per flow: the happy path plus the one failure a user can hit from that screen. Required when the task adds such a flow **and the app already has a harness** (`playwright.config.ts` or equivalent); a task never builds the harness. Not for cosmetic tweaks, copy changes, or behavior already proven at a lower level.
+- **Manual** - only what automation genuinely can't reach: visual polish, a third-party consent screen, hardware. State the exact steps so a reviewer can repeat them.
 
 ## Risks and edge cases
 

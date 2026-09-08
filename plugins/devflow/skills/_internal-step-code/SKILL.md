@@ -51,6 +51,9 @@ continue from there.
 - Add tests discovered during implementation - record each in its
   concern group's `Tests:` sub-bullet and in the rollup, then commit
   the plan file alongside the test code.
+- E2E specs the plan lists are written here, once the UI exists - copy
+  the patterns of the specs already in the harness directory the plan
+  names. Do not build a harness as part of the task.
 
 ## Step: Update Documentation
 

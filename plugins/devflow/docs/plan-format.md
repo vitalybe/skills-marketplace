@@ -58,7 +58,8 @@ One H1 (the task summary), then sections as the flow progresses:
 #### API Changes          (optional)
 
 ### 4. Testing Strategy
-(3-5 lines: what gets verified, at what level)
+(one bullet per test level used - unit / integration / e2e / manual - 1-3
+sentences each, plus a "Not tested" bullet for deliberate gaps)
 
 ### 5. Detailed Implementation
 (the buildable detail - files, contracts, cases, diagrams)
@@ -131,10 +132,32 @@ rest add a one-line bullet directly under Main Changes ("No UI changes",
 
 ### 4. Testing Strategy
 
-3-5 lines: which capabilities get verified and at what level (unit /
-integration / e2e / manual), plus anything deliberately *not* tested and
-why. This is the top zoom level of the test plan - case detail appears
-inline in Detailed Implementation, not here.
+One bullet per test level the task uses, 1-3 sentences each: which
+capabilities that level covers and why that level is the right one for
+them. Omit levels the task doesn't use - except **E2E** when the task
+touches UI, which always gets a bullet: either the flows it drives, or
+`none - <why>` (no harness in the app, cosmetic-only change, ...). Close
+with a **Not tested** bullet for deliberate gaps and their reason, or omit
+it when there are none.
+
+Which level covers what, and how much of each, is specified in
+`plan-guidelines.md` → **Testing strategy**. This is the top zoom level of
+the test plan - case detail appears inline in Detailed Implementation, not
+here.
+
+```markdown
+### 4. Testing Strategy
+
+- **Unit** - the grouping heuristics and the slice builder: pure functions,
+  every branch and edge case lives here.
+- **Integration** - the pipeline step against a temp DB, with the AI agent
+  mocked at its seam; one run proves the wiring and the persisted shape.
+- **E2E** - the new "Group pages" screen, Playwright: upload → groups
+  render → rename one → persists after reload. One spec, happy path plus
+  the empty-upload error.
+- **Not tested** - the progress toast timing; visual only, no stable
+  hook to assert on.
+```
 
 ### 5. Detailed Implementation
 
@@ -173,14 +196,16 @@ time axis). Skip for single-component edits.
       appear only inside node labels as headline examples; the Files tree
       stays the exhaustive inventory. Cap ~12 nodes / ~12 edges per diagram
       - collapse groups rather than exceed it.
-- **End-to-end tests** - include when the change has a user-facing lifecycle
-  worth driving through the real UI. Describe the harness (what's real vs.
-  faked - external agents, paid APIs, and push/deploy operations get mocked
-  at a seam, everything else runs for real; a test-mode auth bypass; a temp
-  DB / data dir per run), then list the flows covered in general terms - one
-  bullet per scenario, user action → what the UI should show. Name the tool
-  (Playwright / Cypress / …) and where the fixtures live. Skip for changes
-  with no UI lifecycle (libraries, pure backend, docs).
+- **End-to-end tests** - include when Testing Strategy has an E2E bullet
+  with flows in it. Describe the harness (what's real vs. faked - external
+  agents, paid APIs, and push/deploy operations get mocked at a seam,
+  everything else runs for real; a test-mode auth bypass; a temp DB / data
+  dir per run), then list the flows covered in general terms - one bullet
+  per scenario, user action → what the UI should show. Name the tool
+  (Playwright / Cypress / …), where the existing specs and fixtures live,
+  and the spec file each flow lands in. Selectors and DOM details are
+  written in the code phase, once the UI exists - don't guess them here.
+  Skip when the E2E bullet says `none`.
 - **Files** - present in two passes:
     1. **Folder tree** in a fenced code block, showing every touched path.
        Format: indented folder structure with one file per line; after each
