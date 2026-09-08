@@ -82,21 +82,33 @@ So **always probe with `duration: 30`**, whatever the meeting length, and let
 - Per-day matters because the API knows nothing about working hours and will
   happily offer 03:00. Hand it a multi-day range and day one's night hours eat
   all 50 candidates before it ever reaches day two.
-- Save each response verbatim to a scratch file (outside the repo), then hand
-  the whole set to the script:
+- **Scan in waves.** Start with the next 4-5 workdays and widen only when the
+  script comes back empty. Sweeping three weeks up front is ~15 calls to answer
+  a question the first five days usually settle.
+- Transcribe the returned rows into one compact grid - a letter per person per
+  slot - and run the script over it:
 
+  ```
+  #names orel vasily amir you
+  2026-09-16 05:00 ffff
+  2026-09-16 10:00 ftff
+  ```
   ```bash
-  python3 scripts/free_windows.py --duration 90 --window 09:00-19:00 scan-*.json
+  python3 scripts/free_windows.py --duration 90 --window 09:00-19:00 scan.txt
   ```
 
-  It shifts to local time with DST, treats **a slot missing from the response as
-  busy**, takes the worst status across every attendee plus
-  `organizerAvailability`, merges consecutive slots, clamps to working hours,
-  and prints the runs that are long enough - split into `EVERYONE FREE` and
-  `ONE OR MORE TENTATIVE`, the latter naming who holds the slot. Read the
-  windows off its output instead of doing interval arithmetic in your head;
-  that is where hand-scanning quietly goes wrong. `--selftest` checks the
-  stitcher, `--tz` moves it off `Asia/Jerusalem`.
+  `f`/`t`/`b`/`o`/`u`, times in UTC, organizer included as a name, and **leave
+  out the slots the API left out** - the script reads those gaps as busy. Don't
+  copy the JSON across verbatim: it already sits in your context, and the grid
+  says the same thing in a twentieth of the tokens.
+
+  The script shifts to local time with DST, takes the worst status per slot,
+  merges consecutive slots, clamps to working hours, and prints the runs long
+  enough to hold the meeting - split into `EVERYONE FREE` and `ONE OR MORE
+  TENTATIVE` with the holders named. Read the windows off its output rather
+  than doing interval arithmetic in your head; that is where hand-scanning
+  quietly goes wrong. `--selftest` checks the stitcher, and it also accepts raw
+  JSON if a response is already on disk.
 
 For clustering, also call `outlook_calendar_search` (query `*`) for **your own**
 events across the candidate days - free/busy tells you a slot is open, not what
