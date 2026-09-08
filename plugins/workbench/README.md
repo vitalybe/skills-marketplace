@@ -13,7 +13,7 @@ Invoked as `/workbench:<name>`.
 | `code-varlock` | Set up, extend, or debug a varlock env schema (validation, type generation, 1Password secrets). |
 | `code-refactor-logging` | Refactor console/log output to structured logging standards (levels, colors, prefixes). |
 | `skill-improve-session` | Review a session transcript to find and fix skill/doc/permission failures; bundles its own parser. |
-| `browser-automation-explore-and-script` | Record a web flow with Playwright codegen, then translate it into a reliable replayable script. |
+| `browser-automation-explore-and-script` | Record a web flow with Playwright codegen, explore it against the operator's Chrome (browser-harness) or a Playwright profile, then commit a replayable script that verifies its output. |
 | `task-jira` | Read, create, edit, comment, transition, and search JIRA issues via the `tasks` CLI. |
 | `task-obsidian` | List, open, and create personal to-dos in the Obsidian vault - plain `- [ ]` lines in the notes, found with ripgrep. |
 | `wiki` | Read from and write to the personal Obsidian knowledge vault (routes via the vault's own `CLAUDE.md`). |
@@ -35,7 +35,7 @@ The skill **files** ship with the plugin; their **runtimes, CLIs, and credential
 | `wiki` | an Obsidian vault at `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`) with its own routing `CLAUDE.md`. |
 | `schedule-work-meeting` | the Microsoft 365 + Slack MCP connectors; a browser logged into Outlook Web. |
 | `skill-improve-session` | `node` + `pnpm` (installs the bundled parser deps on first run). |
-| `browser-automation-explore-and-script` | `node`; Puppeteer/Playwright installed in the target project. |
+| `browser-automation-explore-and-script` | `node` + Playwright in the target project; `browser-harness` (uv) with Chrome remote debugging enabled for operator-session flows. |
 | `code-varlock` | `pnpm`; `varlock` in the target project. |
 | `task-herdr`, `orchestrator-init`, `herdr-watch-pane` | the `herdr` CLI, running inside herdr (`HERDR_ENV=1`); `python3` for `orchestrator-init`. These no-op outside herdr. |
 | `orchestrate-agents` | `git`; the devflow plugin (`devflow@vitalybe-skills`) - each subagent runs its Code step. Works outside herdr. |

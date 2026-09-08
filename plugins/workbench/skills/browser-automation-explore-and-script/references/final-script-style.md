@@ -1,142 +1,82 @@
 # Final-script style guide
 
-The goal: a script that succeeds reliably in production AND fails informatively, so that when an agent (or a tired human) has to debug it months later from just the captured log output, they can.
+Goal: a script that succeeds reliably AND fails informatively, so an agent (or a tired human) can fix it months later from the captured log.
 
-## Two production reference scripts
+Start from the template that matches the driver - `templates/harness-fetch-skeleton.py` (operator's Chrome) or `templates/playwright-fetch-skeleton.mjs` (own profile). Both encode the principles below.
 
-These exist in the user's repo and are the gold standard to match:
+## Principles
 
-| Path | Approach | When to model after |
-|------|----------|---------------------|
-| `~/hq/finance-importer/finance-max-account.mjs` | agent-browser via `spawn("agent-browser", ...)` | When agent-browser handled the full flow during exploration |
-| `~/hq/finance-importer/finance-cal-account.mjs` | Playwright `chromium.launchPersistentContext` | When the site has cross-origin iframes, OTP, or other agent-browser blockers - use puppeteer in the same shape |
+### 1. Follow-along logging
 
-Read whichever one matches the path you took during exploration before writing the new script. The `~/hq/finance-importer/README.md` documents the project conventions (varlock schema, `FINANCE_DOWNLOAD_DIR`, parser naming).
+The log alone must answer: which step, what URL/state, what matched, why it stopped.
 
-## The non-negotiable principles
+- `step: <label>` entering every step; the resulting URL and title after it.
+- The actual selector/text/id that matched, not "clicked button".
+- Long waits log around themselves - a silent 60s `waitFor` that times out tells you nothing.
+- Playwright path: a screenshot + JSON snapshot of visible controls per step to `debug/<source>/<iso>-<n>-<label>.{png,snap.json}`, paths in the log. The template's `captureState()` does this.
+- browser-harness path: log the tab id, the expression you evaluated (or a short label for it), and the status string it returned.
 
-### 1. Heavy progress logging — the agent must follow along from logs alone
+Prefix `[<script> <iso>]`, stderr only. No colours, no emojis - it's read by `tail -f` and by agents grepping.
 
-The single most important principle. If something breaks at 3am and the only thing in the captured output is `FAIL: timeout`, the next agent has to re-run the whole flow to debug. That's wasted time and money. Instead, log enough that the captured output tells the full story:
+### 2. Redaction
 
-- A `step: <label>` line entering every step.
-- After every navigation or DOM transition: the new URL, page title, and a count of visible buttons / inputs / iframes.
-- Every actual interaction: the selector or text that matched, not just "clicked button".
-- On every step, a screenshot AND a JSON snapshot of visible elements to `./debug/<source>/<timestamp>-<step>.png` and `.snap.json`. Log the paths so the captured output references them.
+Never log cookie, authorization, or token values - not in the command you echo, not in the response you dump. Screenshots and DOM snapshots of a logged-in session are credentials by another name: `debug/` is gitignored, and if a log is handed to an agent it goes through a redactor first (blank the value after `cookie:`/`authorization:` up to end of line, not up to the next quote - cookie values contain quoted JSON).
 
-Concretely, every step looks like this in the log:
+### 3. Verify the output, not the exit
 
-```
-[finance-cal-account 2026-05-16T13:36:00.123Z] step: switch-to-username-tab
-[finance-cal-account 2026-05-16T13:36:00.480Z]   state[007]: after-switch-to-username-tab | url=https://digital-web.cal-online.co.il/calconnect/regular-login | title="CalConnect" | btns=6 iframes=0 | png=./debug/cal/2026-05-16T13-36-00-480Z-007-after-switch-to-username-tab.png snap=./debug/cal/2026-05-16T13-36-00-480Z-007-after-switch-to-username-tab.snap.json
-```
+"File exists" is not success. Define success as records in the requested scope:
 
-The agent reading this knows: which step, which URL, page changed (or didn't), how many interactive things are visible, and where to look for the screenshot + structured DOM dump if it needs more. No re-running required.
+- Assert the scope (org, account, workspace, date window) in the page *before* exporting; fail loudly when it can't be confirmed. The wrong scope yields a valid, empty file - the one failure every naive check passes.
+- Zero rows is a failure unless this source declares that empty is legitimate (a no-spend month). Say which in the docstring.
+- If the endpoint ignores your date params, filter client-side and state the reachable window.
 
-The skeleton template (`templates/final-script-skeleton.mjs`) implements this in a `captureState(page, label)` helper invoked after every `step()`. Use it.
+### 4. Two failure classes, distinguishable to the caller
 
-### 2. Secrets via varlock - never hardcoded, never on the command line
+- **Needs a human**: signed out, 401/403, a missing role. Prefix the message `LOGIN:` (or use a dedicated exit code). Name the URL and what the operator must do.
+- **Code is wrong**: endpoint changed, selector gone, timeout. Plain error.
 
-In the user's hq repo, every fetcher uses varlock to resolve secrets from 1Password:
+A timeout is *not* evidence the session is bad - don't report it as a login problem. And never edit the script to route around missing auth.
 
-```js
-// Set cwd to the script's dir so varlock finds .env.schema, then restore.
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-{
-  const originalCwd = process.cwd();
-  process.chdir(SCRIPT_DIR);
-  await import("varlock/auto-load");
-  process.chdir(originalCwd);
-}
-const USER = process.env.ACCOUNT_<SOURCE>_USER;
-const PASS = process.env.ACCOUNT_<SOURCE>_PASS;
-if (!USER || !PASS) {
-  console.error(`[finance-<source>-account] varlock did not populate creds - check .env.schema`);
-  process.exit(1);
-}
-```
+### 5. Docstring for the next agent
 
-The `.env.schema` entry uses an `op(...)` reference:
+Top of file, two kinds of facts:
 
-```
-ACCOUNT_<SOURCE>_USER=op("op://Private/<item-id>/username")
-# @sensitive
-ACCOUNT_<SOURCE>_PASS=op("op://Private/<item-id>/password")
-```
+- *Site quirks*: WAF, cross-origin login iframe, OTP on new device, class hashes that rotate, a deep link that 404s cold.
+- *Data semantics*: rolling 30-day window, reporting lag behind the calendar, month-to-date only, params the endpoint ignores, columns absent upstream. These change what the script *requests*, so they belong next to the code that requests it.
 
-If the user is on a project without varlock, ask before writing - sometimes the right answer is plain env vars or `.env` via dotenv. Match the project's existing convention.
+Add a dated line for anything verified empirically ("verified 2026-08-30: 403 without header X").
 
-### 3. Honor FINANCE_DOWNLOAD_DIR (or the project's equivalent override)
+### 6. Secrets
 
-The orchestrator (`/p-wiki-finance-process`) sets `FINANCE_DOWNLOAD_DIR` to a fresh tmp dir per run. Manual runs without it should default to `./downloads/<source>/`:
+- Operator's-Chrome path: the script holds **no** credentials. That's the point of it.
+- Own-profile path: read from the project's convention (varlock + 1Password `op://` refs in personal repos, `.env`/env vars elsewhere); never on the command line, never hardcoded. Fail fast with a clear message when they're missing.
 
-```js
-const DOWNLOAD_DIR = process.env.FINANCE_DOWNLOAD_DIR ?? join(SCRIPT_DIR, "downloads", "<source>");
-mkdirSync(DOWNLOAD_DIR, { recursive: true });
-```
+### 7. Contract with the caller
 
-### 4. Module docstring documenting why this site is unusual
+- One JSON line on stdout: `{"source": ..., "file": ..., "rows": N, ...}`. Nothing else on stdout.
+- Honour the project's download-dir override (`<PROJECT>_DOWNLOAD_DIR` or an `OUT` path); default under the script's own dir.
+- Move downloads out of `~/Downloads` and delete the original.
 
-Every fetcher has a top-of-file comment block explaining the quirks. Examples:
+### 8. Timeouts under the transport
 
-- "cal-online.co.il is fronted by a BIG-IP ASM WAF that rejects most headless UAs."
-- "Login form lives inside a cross-origin same-site iframe (connect.cal-online.co.il)."
-- "First login from a new device requires an SMS OTP."
+No single driver call may outlive the driver's own timeout. Kick off the slow thing, poll a `window` global, read the result in a separate call. See `gotchas.md`.
 
-These notes prevent the next agent from re-discovering the same gotchas. Add a line for everything tricky you found during exploration.
+### 9. Shared-browser hygiene (browser-harness)
 
-### 5. try/catch/finally with guaranteed browser cleanup
+Pin every call to your tab id. Close only tabs you opened; borrow an existing tab on the host when only the origin matters. One harness process at a time - two make each other's targets disappear.
 
-```js
-let exitCode = 0;
-try {
-  await main();
-} catch (err) {
-  log(`FATAL: ${err.message}`);
-  exitCode = 1;
-} finally {
-  await browser.close().catch(() => {});
-}
-process.exit(exitCode);
-```
+### 10. Cleanup in `finally`
 
-Skip `.close()` and you leak Chrome processes - cheap to do, easy to forget.
+`try { ... } catch { exitCode = 1 } finally { await context.close() }` - or the Python equivalent. A leaked Chrome is cheap to prevent and expensive to notice.
 
-### 6. Logging conventions
+### 11. Run it cold
 
-- Prefix: `[<script-name> <iso-timestamp>] `. Always stderr (stdout is for data if any).
-- A `step(label, fn)` wrapper logs entry, runs the work, captures debug state, and propagates errors with the label included.
-- No emojis, no colors. Plain text - it's read by tail -f and by agents grepping log files.
-
-### 7. Run the final script once before declaring done
-
-After writing the production script, run it cold (not from the explore state). Verify the success signal (file on disk, expected size, etc.). Fix anything that breaks - exploration state can mask bugs that show up only on a clean run (e.g., login redirects, cookie-banner popups that don't appear when the profile already accepted them).
+After writing, run once from a clean state (not the explore session). Verify the success signal. On a detection-gated site a fresh profile can be blocked while the warmed one passes - re-run unchanged code on the known-good profile before assuming the script broke.
 
 ## Anti-patterns
 
-- **Silent steps.** A 60-second `await page.waitForSelector(...)` with no log line in between. If it times out, you have no idea why - did the URL change? Was the selector wrong? Was the network slow? Log around long waits.
-- **One-shot selectors.** `await page.click("button.primary")` with no fallback and no diagnostic. When that breaks (and it will), the script just fails with no clue. Wrap in `step()` and capture state.
-- **Hidden state.** "It worked once interactively, so I'll just commit it." Persistent state from the explore session is invisible at production runtime. Test with a fresh profile dir at least once - with the caveat below if the site is detection-gated.
-- **Cleaning up too aggressively.** Don't `rm -rf debug/` in the script. The debug artifacts are exactly what you need to debug the next failure. The orchestrator's job to garbage-collect, not the fetcher's.
-
-### The fresh-profile caveat on detection-gated sites
-
-On a site fronted by a WAF or bot detection, a fresh profile is itself a signal -
-it can be blocked outright while a warmed profile sails through. That makes a
-cold-run failure **ambiguous**: you cannot tell "my script is broken" from "the
-fresh profile got flagged" by looking at the failure alone. Same code, same
-machine, same minute will happily give you a full page on the seasoned profile
-and a hard block on the new one.
-
-Isolate before you touch the script:
-
-1. Re-run the **unchanged** code against the known-good profile.
-2. Still works -> the profile was flagged, your script is fine.
-3. Also fails -> now it's a real bug, debug normally.
-
-Skipping this costs you an afternoon rewriting a script that was never broken.
-
-Treat fresh profiles as **consumable**. Each one that gets blocked feeds the
-site's reputation model for your whole IP, so spraying new profile dirs at a
-failing flow makes the next attempt harder, not easier. Warm one profile, keep
-it, and reuse it.
+- **Silent steps** - a bare `waitForSelector` with nothing logged around it.
+- **One-shot selectors** - no fallback, no diagnostic of what *was* visible.
+- **Try-and-fall-back against a live session** - each rejected request scores against the operator's reputation. Decide the path once, per source.
+- **Hidden state** - "worked interactively, shipping it". Persistent state from exploration is invisible at runtime.
+- **Over-cleaning** - don't `rm -rf debug/` in the script; that's the caller's job.
