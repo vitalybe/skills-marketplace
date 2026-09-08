@@ -60,15 +60,43 @@ For every name:
 
 Also call `get_me` to get your own primary email (you are the organizer).
 
-### 3. Pull availability + calendar layout
-Convert the target window to **UTC** for the API calls.
+### 3. Probe availability at 30-minute granularity
 
-- `find_meeting_availability` with `participants=[attendee emails]`,
-  `afterDateTime`/`beforeDateTime` bounding the day/window (UTC),
-  `duration`, `maxCandidates: 50`. The current user is auto-included.
-- `outlook_calendar_search` (query `*`) for **your own** events that day, so you
-  can see the layout of existing meetings (availability alone can't tell you
-  where the gaps are).
+`find_meeting_availability` returns **one verdict per block of the `duration`
+you ask for**. Ask for 90 minutes and a single busy half-hour anywhere inside
+the block stamps the whole 90 minutes `busy` or `oof`. Coarse probes therefore
+manufacture false negatives that read like hard facts: a real session reported
+"he's out of office every afternoon" and "no window exists in the next month"
+off 90-minute probes, and a 30-minute rescan of the same days found several
+fully-free windows.
+
+So **always probe with `duration: 30`**, whatever the meeting length, and do the
+block-fitting yourself.
+
+- One call **per candidate day**, with `afterDateTime`/`beforeDateTime` bounding
+  that day's working window **in UTC** (Israel 09:00-19:00 local = 06:00-16:00Z
+  in summer, 07:00-17:00Z in winter), `duration: 30`, `maxCandidates: 50`. Fire
+  the days off in parallel. The current user is auto-included.
+- Per-day matters because the API knows nothing about working hours and will
+  happily offer 03:00. Hand it a multi-day range and day one's night hours eat
+  all 50 candidates before it ever reaches day two.
+- **A slot missing from the response means someone is busy then.** Read the
+  gaps, not just the rows you got back.
+- Each row carries an `availability` per attendee (`free` / `tentative` /
+  `busy` / `oof`) plus `organizerAvailability` for the user. A slot is clean
+  only when every one of those says `free`.
+- Stitch consecutive clean slots into runs, then keep the runs at least as long
+  as the meeting.
+
+For clustering, also call `outlook_calendar_search` (query `*`) for **your own**
+events across the candidate days - free/busy tells you a slot is open, not what
+it sits next to. That works on the user's own calendar only; passing
+`calendarOwnerEmail` for a colleague 404s (`ErrorItemNotFound`) without delegate
+access, so don't spend a call on it - free/busy is all you get for other people.
+
+**The working window is a hard bound, not a hint.** Don't drift below the floor
+because a slot down there looks convenient; the user set 09:00 deliberately and
+will correct you.
 
 **Timezone care:** the availability API returns each slot's `dateTime` with a
 `timeZone` field, and often falls back to **UTC** when the mailbox zone is
@@ -123,6 +151,14 @@ local date/time, attendees.
 
 ## Notes & gotchas
 
+- **Never announce "no slot exists"** off a coarse or single query - that claim
+  needs the 30-minute scan of step 3 across every candidate day behind it. If
+  the scan genuinely finds nothing clean, say which days you covered and offer
+  the best `tentative`-overlap options instead of declaring a dead end.
+- **An attendee's own word beats their free/busy.** When the user relays "X said
+  16:30 works", book it even if the calendar disagrees - people block time they
+  are willing to give up. Flag the overlap in one line and move on; don't
+  re-derive or argue the point.
 - **"Unavailable" on an attendee chip** in the OWA compose often just means
   free/busy hasn't loaded yet, not a real conflict. Trust
   `find_meeting_availability` - if it says free, the slot is fine.
