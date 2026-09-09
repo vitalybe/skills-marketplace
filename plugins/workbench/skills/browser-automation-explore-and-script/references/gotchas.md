@@ -60,7 +60,39 @@ then poll `!!(window.__job && window.__job.done)` every ~2s up to your real budg
 
 **Cause:** the SPA adds per-request headers (tenant/user/workspace ids, CSRF) you didn't send.
 
-**Fix:** copy the request from DevTools as fetch and diff headers. Recover ids from where the app keeps them (localStorage keys, a bootstrap JSON) rather than hardcoding.
+**Fix:** copy the request from DevTools as fetch and diff headers. Recover ids from where the app keeps them (localStorage keys, a bootstrap JSON) rather than hardcoding. Diff on a *failing* call, not a passing one: anything you generated yourself (a random id, a timestamp) is the suspect, because the server may validate it as a pair with the token - a credential you read off live traffic can still 401 when sent with your own nonce.
+
+## The session can't be reached from a tab you opened
+
+**Symptom:** the operator is signed in; your new tab on the same origin gets 401 or lands on the login page.
+
+**Cause:** a cookie goes out from any tab. `sessionStorage` is per tab and a CDP-opened tab starts empty, so it authenticates only if the app re-mints from a cookie on load - usual for a bearer from silent SSO, impossible behind a password form. A token living only in the app's memory needs code running in *that* tab: the framework's state, or a wrapper on `fetch`/XHR.
+
+**Fix:** per-tab or in-memory means borrowing the operator's tab, and "no tab open" is a `LOGIN:` condition.
+
+## Minting your own session logs the operator out
+
+**Symptom:** your login/handshake call returns a working credential; the operator's app bounces to a login or home screen, and every credential you mint afterwards is rejected.
+
+**Cause:** one session per user. The server evicts the previous one, which was theirs.
+
+**Fix:** never mint on an app the operator is using; borrow the credential the running app holds. If you already evicted them, re-navigate to the app's entry URL so its handshake re-runs off the outer session, and say so in the report.
+
+## Auth failure with no HTTP status
+
+**Symptom:** `TypeError: Failed to fetch`, status 0, on a same-origin URL - while an unrelated call from the same page returns 200.
+
+**Cause:** some gateways reset the connection on a missing or malformed header, or on the wrong method, instead of answering 401. At the status level, unauthenticated is indistinguishable from an outage.
+
+**Fix:** run a control call to a known-good endpoint from the same page first, to prove the page isn't the problem. Then key auth detection off the response *body* - an exception type, an error code - rather than off the status.
+
+## You are not the only one patching the page
+
+**Symptom:** your `fetch` / XHR wrapper stops firing after a few seconds, or the page's own calls break while yours is installed.
+
+**Cause:** analytics and session-replay libraries wrap the same globals and re-arm themselves, silently dropping any patch layered on top.
+
+**Fix:** snapshot `String(window.fetch)` / `XMLHttpRequest.prototype.open` first, keep your wrapper installed only as long as it takes to read the value, restore the originals through a closure the page holds in `finally`, and check they match the snapshot.
 
 ## Export succeeds with zero rows
 
@@ -69,6 +101,26 @@ then poll `!!(window.__job && window.__job.done)` every ~2s up to your real budg
 **Cause:** the export ran in the wrong scope - wrong org/account/project, a date window the endpoint ignores, or the app's data horizon lags the calendar.
 
 **Fix:** assert the scope in the DOM before exporting and fail loudly if it isn't what you expect. Treat zero rows as failure unless the source declares empty legitimate. If the endpoint ignores your date params (rolling window), filter client-side and document the limit.
+
+## The API's "no" is an HTTP 200
+
+**Symptom:** a request for a scope or a date the provider doesn't have returns success with nothing useful: an empty array, a bare `null`, a total of 0, a payload missing the data key entirely, or a 2xx that isn't 200.
+
+**Cause:** the provider models "nothing for that" as success, and the body shape differs per endpoint.
+
+**Fix:** encode each shape you find as its own hard failure that names what was refused. An echoed default - today's date where you asked for another - means "nothing for that", not "here is that".
+
+## Obfuscated fields, undocumented endpoints
+
+**Symptom:** responses like `{"a":"0","bd":207,"bf":22414.25}`, no endpoint list, and two similar fields where you can't tell which one the UI actually shows.
+
+**Fix:** read the app's bundle. It is static, greppable, and costs the live session nothing.
+
+- `rg -o 'api/[\w./-]+' *.js | sort -u` over every chunk, using the path prefix you saw in DevTools. Surfaces endpoints the recorded flow never hit; misses paths assembled at runtime.
+- Single-letter response fields usually have a mapping table in the bundle (`{a:"Name", b:"Value"}`). Copy it into the script.
+- When several fields look plausible, the function that computes the number rendered on screen settles which is authoritative.
+
+For URLs with no patching: `performance.setResourceTimingBufferSize(5000); performance.clearResourceTimings()`, operator clicks, then `performance.getEntriesByType('resource')` gives name, `initiatorType`, `responseStatus` (same-origin only, no headers). Raise the buffer first: it defaults to 250 entries, and some apps clear it themselves.
 
 ## Permission wall that isn't one
 

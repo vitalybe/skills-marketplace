@@ -44,13 +44,15 @@ Install if needed: `npx -y playwright@latest install --with-deps chromium`.
 
 Read the output for `getByRole`/`frameLocator`/URL patterns, iframes, downloads and waits.
 
-**Also capture the request, not just the clicks.** Ask the user to keep DevTools → Network open while recording and, after the final action (export, download, table load), right-click the request that produced the data → *Copy as fetch*. Codegen shows *how a human gets the data*; the network entry shows *where the data actually comes from*. Phase 2 needs both.
+**Also capture the request, not just the clicks.** Ask the user to keep DevTools → Network open while recording and, after the final action (export, download, table load), right-click the request that produced the data → *Copy as fetch*. Codegen shows *how a human gets the data*; the network entry shows *where the data actually comes from*. Phase 2 needs both. No DevTools, or you want the endpoints the recorded flow never called? *Obfuscated fields, undocumented endpoints* in the gotchas has two fallbacks.
 
 ### Phase 2: Pick the rung
 
+**Find the credential first; it can rule out a rung.** Cookie: any tab, including one you open. `sessionStorage`: the operator's tab only. App memory: only code running in that tab. Check cookie names in DevTools → Application (`document.cookie` hides HttpOnly ones), `Object.keys(sessionStorage)`, then the headers on a call the app makes - before writing anything.
+
 Lowest rung that holds:
 
-1. **Replay the request.** If the data comes from one API call, reproduce that call and skip the UI. Same-origin `fetch()` evaluated inside the operator's tab (browser-harness `js()`) carries the session cookie and any per-request headers the SPA adds; `curl` with harvested cookies only when the site isn't behind TLS-fingerprint bot detection (Cloudflare 403s curl on perfectly good cookies). Read `references/gotchas.md` → *curl gets 403* before trying.
+1. **Replay the request.** If the data comes from one API call, reproduce that call and skip the UI. Same-origin `fetch()` evaluated inside the operator's tab (browser-harness `js()`) carries the session cookie and any per-request headers the SPA adds; `curl` with harvested cookies only when the site isn't behind TLS-fingerprint bot detection (Cloudflare 403s curl on perfectly good cookies - see *curl gets 403* first).
 2. **Drive the UI.** Only when the request can't be replayed (cross-origin bearer token the app mints, download that only the page can trigger). Selectors structural - label, role, visible text, DOM shape - never framework class hashes.
 
 Decide per source and write the decision down. Don't "try the cheap way and fall back": every rejected request is scored against the operator's live session.
@@ -58,6 +60,11 @@ Decide per source and write the decision down. Don't "try the cheap way and fall
 ### Phase 3: Explore interactively
 
 Run the flow one or a few steps at a time, checking state between steps. When a click silently does nothing, **stop** - screenshot, inspect, understand - rather than stacking more actions on top.
+
+- **Shape probe output in the page**, not in your context: a structure summary, a slice, a deduped list. Payloads run to tens of MB and a raw dump eats the context you need to finish.
+- **Probe refusals now** - a date before the history, an id that doesn't exist, a scope you lack. A refusal is often HTTP 2xx with an empty or zeroed body, and each shape becomes a hard check in the final script.
+
+When something does fail, look the symptom up instead of improvising: `rg -n '^## ' references/gotchas.md` lists every known symptom, then Read only the matching entry with `offset`/`limit`.
 
 **browser-harness** (operator's Chrome):
 
@@ -71,7 +78,7 @@ capture_screenshot()
 PY
 ```
 
-The daemon has one globally "attached" tab that drifts when the operator clicks around, so pass `target_id=` on every read and never assume the current tab is yours. Its `js()` round-trip is capped at a few seconds: anything slower (an export endpoint, a slow SPA) is kicked off unawaited and polled - see `references/gotchas.md`.
+The daemon has one globally "attached" tab that drifts when the operator clicks around, so pass `target_id=` on every read and never assume the current tab is yours. Its `js()` round-trip is capped at a few seconds: anything slower (an export endpoint, a slow SPA) is kicked off unawaited and polled - see *One call times out* in the gotchas.
 
 **Playwright** (own profile): copy `templates/playwright-explore.mjs` into the project as `_explore.mjs` (leading `_` = scrap, must live inside the project so `node_modules` resolves), set the URL and profile dir, run it. It opens a headed browser and calls `page.pause()`, which drops you into the Inspector: step, record more, run selectors in its console. Anything the Inspector can't do, write a one-off `node -e` against the same profile.
 
@@ -101,7 +108,7 @@ Delete `_explore*` scrap unless wanted, close any browser you launched, remove t
 
 | File | Purpose |
 |------|---------|
-| `references/gotchas.md` | Symptom-indexed gotchas, driver-neutral (timeouts, tab drift, empty exports, bot walls, downloads, iframes) |
+| `references/gotchas.md` | Symptom-indexed lookup table, driver-neutral. Not read whole. |
 | `references/final-script-style.md` | Production-script conventions: logging, redaction, verification, failure classes, secrets |
 | `templates/harness-fetch-skeleton.py` | browser-harness fetcher: pinned tab, in-page request replay with kick-and-poll, JSON envelope |
 | `templates/playwright-fetch-skeleton.mjs` | Playwright persistent-profile fetcher with `step()`/`captureState()` debug capture and download handling |
