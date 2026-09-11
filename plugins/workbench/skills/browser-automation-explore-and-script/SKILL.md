@@ -21,13 +21,14 @@ Puppeteer and agent-browser are not used for new work. If the user has an existi
 
 ### Phase 0: Capture intent
 
-One short message, three questions:
+One short message, four questions:
 
 1. **Site + flow** - URL and the end-to-end outcome ("log in to X, download last month's statement").
 2. **Where the script lives** - absolute path. Propose a default from context; don't bikeshed.
 3. **Whose browser session** - this decides the driver:
    - *The operator's* (they run it while at the desk; the site has SSO/2FA/bot-wall; no stored secrets wanted) → browser-harness.
    - *The script's own* (cron, headless, isolated creds) → Playwright persistent profile, and ask how credentials are read (varlock/1Password in personal repos, `.env`/env vars elsewhere - match the project).
+4. **Self-healing on failure?** Ask outright, don't assume: *"when this fails later, should it open a `claude` agent in a herdr pane below to fix itself and retry?"* Yes → wire it per Phase 4. No → skip it entirely; the script still logs everything, a human just drives the fix. Only offer it when `HERDR_ENV=1`; outside herdr there is no pane to split, so don't raise it.
 
 ### Phase 1: Record with Playwright codegen
 
@@ -97,6 +98,7 @@ Start from the template for the path you took - `templates/harness-fetch-skeleto
 7. **Timeouts under the transport.** No single driver round-trip may outlive the driver's own timeout. Kick off, then poll a page global.
 8. **Shared-browser hygiene** (browser-harness): pin your tab, close only tabs you opened, never run two harness processes at once.
 9. **Cleanup in `finally`.** Browser/context closed, downloads moved out of `~/Downloads`.
+10. **Self-healing, if the operator asked for it in Phase 0.** Both templates already call `spawn-heal-pane.sh` from their failure path; to arm it, copy `scripts/spawn-heal-pane.sh` next to the final script (the templates look for it there and no-op when it is missing) and, in the harness template, set `SCRIPT_PATH`. Details and the invariants in `references/final-script-style.md`.
 
 Then **run it cold once** - not from the explore session's state. Exploration state hides cookie banners, redirects and popups a warmed profile already dismissed. Report the success signal (rows, file path + size).
 
@@ -113,3 +115,4 @@ Delete `_explore*` scrap unless wanted, close any browser you launched, remove t
 | `templates/harness-fetch-skeleton.py` | browser-harness fetcher: pinned tab, in-page request replay with kick-and-poll, JSON envelope |
 | `templates/playwright-fetch-skeleton.mjs` | Playwright persistent-profile fetcher with `step()`/`captureState()` debug capture and download handling |
 | `templates/playwright-explore.mjs` | Headed persistent-profile launcher that stops in `page.pause()` for interactive exploration |
+| `scripts/spawn-heal-pane.sh` | Opt-in self-heal: splits a `claude` healer pane below the failing run and briefs it to fix and retry by driving the pane above |

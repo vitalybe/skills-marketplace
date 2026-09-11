@@ -78,11 +78,26 @@ No single driver call may outlive the driver's own timeout. Kick off the slow th
 
 Pin every call to your tab id. Close only tabs you opened; borrow an existing tab on the host when only the origin matters. One harness process at a time - two make each other's targets disappear.
 
-### 10. Cleanup in `finally`
+### 10. Self-healing (opt-in)
+
+Only when the operator said yes in Phase 0. On a *code-is-wrong* failure the script calls `spawn-heal-pane.sh`, which splits a `claude` agent into a herdr pane **below** the failing pane and briefs it to fix the script and retry by driving the pane above. Arm it by copying `scripts/spawn-heal-pane.sh` next to the final script; both templates call it and no-op when it is absent.
+
+The invariants are what make it safe rather than a robot thrashing a live site:
+
+- **`LOGIN:`-class failures get no healer.** Expired session, 401/403, missing role: a human must act, and the one thing an agent must never do is script around auth. Only the code-is-wrong class is healable.
+- **The retry runs in the pane above, not in the healer's pane.** That pane holds the shell, env, profile and browser session the script actually failed in, and the operator can watch the retry happen.
+- **Recursion is guarded on both sides.** The healer re-runs with `SELFHEAL=0`, and the spawner refuses to run when it sees `SELFHEAL=0` - otherwise every failed retry stacks another pane.
+- **The spawner can never change the script's exit code.** Every guard and every herdr error exits 0 after a warning; a broken healer must not mask the original failure.
+- **Three retries, then stop and report.** An agent that keeps guessing against a rate-limited live site does damage.
+- **A healer is only as good as the run log.** This is the concrete reason principle 1 is not optional: the healer's first instruction is to work from the log and the debug artifacts rather than re-driving the site.
+
+`SELFHEAL=0` in the environment disables it for a run without editing anything - use it in cron, CI, or any context with no operator watching.
+
+### 11. Cleanup in `finally`
 
 `try { ... } catch { exitCode = 1 } finally { await context.close() }` - or the Python equivalent. A leaked Chrome is cheap to prevent and expensive to notice.
 
-### 11. Run it cold
+### 12. Run it cold
 
 After writing, run once from a clean state (not the explore session). Verify the success signal. On a detection-gated site a fresh profile can be blocked while the warmed one passes - re-run unchanged code on the known-good profile before assuming the script broke.
 

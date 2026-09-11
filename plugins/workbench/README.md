@@ -36,7 +36,7 @@ The skill **files** ship with the plugin; their **runtimes, CLIs, and credential
 | `wiki` | an Obsidian vault at `$OBSIDIAN_VAULT` (default `~/homebot/obsidian`) with its own routing `CLAUDE.md`. |
 | `schedule-work-meeting` | the Microsoft 365 + Slack MCP connectors; a browser logged into Outlook Web. |
 | `skill-improve-session` | `node` + `pnpm` (installs the bundled parser deps on first run). |
-| `browser-automation-explore-and-script` | `node` + Playwright in the target project; `browser-harness` (uv) with Chrome remote debugging enabled for operator-session flows. |
+| `browser-automation-explore-and-script` | `node` + Playwright in the target project; `browser-harness` (uv) with Chrome remote debugging enabled for operator-session flows; `herdr` + `claude` on PATH for the optional self-heal pane. |
 | `code-varlock` | `pnpm`; `varlock` in the target project. |
 | `task-herdr`, `orchestrator-init`, `herdr-watch-pane` | the `herdr` CLI, running inside herdr (`HERDR_ENV=1`); `python3` for `orchestrator-init`. These no-op outside herdr. |
 | `orchestrate-agents` | `git`; the devflow plugin (`devflow@vitalybe-skills`) - each subagent runs its Code step. Works outside herdr. |

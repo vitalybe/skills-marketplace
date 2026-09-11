@@ -13,13 +13,52 @@
 #
 # Env:
 #   <SOURCE>_OUT=<path>   where to write the result (default: temp dir)
+#   SELFHEAL=0            disable the self-heal pane (see fail() below)
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import time
 
 ORIGIN = "https://example.com/"
 REQUEST_URL = "https://example.com/api/export?..."   # copied from DevTools "Copy as fetch"
+
+# This file is piped into browser-harness on stdin, so there is no __file__ to
+# read - spell out where it lives, so the healer can find and edit it.
+SCRIPT_PATH = "<absolute path to this file>"
+RUN_LOG = os.environ.get("<SOURCE>_LOG") or os.path.join(tempfile.gettempdir(), "<source>.run.log")
+
+
+def log(msg):
+    """stderr for the operator, one file for whoever debugs this later."""
+    line = "[<source> %s] %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S"), msg)
+    sys.stderr.write(line)
+    try:
+        with open(RUN_LOG, "a") as fh:
+            fh.write(line)
+    except OSError:
+        pass
+
+
+def fail(msg, login=False):
+    """Exit on a failure, and hand the code-is-wrong class to a self-heal agent.
+
+    login=True means a human must act (signed out, missing role). No healer for
+    those: an agent must never script around missing auth. Everything else is a
+    code bug, so a `claude` agent is spawned in a herdr pane below this one to fix
+    the script and retry it by driving this pane. Opt out with SELFHEAL=0; a no-op
+    outside herdr or when the helper is not next to the script.
+    """
+    log(("LOGIN: " if login else "FATAL: ") + msg)
+    helper = os.path.join(os.path.dirname(SCRIPT_PATH), "spawn-heal-pane.sh")
+    if not login and os.environ.get("SELFHEAL") != "0" and os.path.exists(helper):
+        subprocess.run(["bash", helper,
+                        "--script", SCRIPT_PATH,
+                        "--cmd", "cat %s | browser-harness" % SCRIPT_PATH,
+                        "--log", RUN_LOG,
+                        "--error", msg], check=False)
+    raise SystemExit(("LOGIN: " if login else "") + "<source>: " + msg)
 
 # A tab is only needed for its ORIGIN. Reuse one the operator already has open on
 # this host rather than piling up new ones; open our own only if none exists.
@@ -41,7 +80,7 @@ def js_(expr):
 wait_for_load()
 _url = js_("location.href") or ""
 if not _url.startswith(ORIGIN):
-    raise SystemExit("LOGIN: <source>: tab was redirected off %s to %s - sign in there and retry" % (ORIGIN, _url))
+    fail("tab was redirected off %s to %s - sign in there and retry" % (ORIGIN, _url), login=True)
 
 # Kick the request off unawaited and poll: one js() round-trip must stay under the
 # harness's IPC timeout (~5s), and exports routinely take longer. The trailing
@@ -64,7 +103,7 @@ for _ in range(60):  # 60 * 2s = 2 min ceiling
     if js_("!!(window.__job && window.__job.done)"):
         break
 else:
-    raise SystemExit("<source>: request did not respond within 120s")
+    fail("request did not respond within 120s")
 
 _res = json.loads(js_("JSON.stringify(window.__job)"))
 if _opened:  # only close what we opened
@@ -74,12 +113,12 @@ if _opened:  # only close what we opened
         pass
 if _res.get("error"):
     if _res["error"] in ("HTTP 401", "HTTP 403"):
-        raise SystemExit("LOGIN: <source>: %s - the session lacks access; sign in / request the role" % _res["error"])
-    raise SystemExit("<source>: " + _res["error"])
+        fail("%s - the session lacks access; sign in / request the role" % _res["error"], login=True)
+    fail(_res["error"])
 
 rows = _res.get("data") or []
 if not rows:  # empty is a failure unless THIS source documents that empty is legitimate
-    raise SystemExit("<source>: request returned no rows")
+    fail("request returned no rows")
 
 out = os.environ.get("<SOURCE>_OUT") or os.path.join(tempfile.gettempdir(), "<source>.json")
 with open(out, "w") as f:

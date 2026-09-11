@@ -15,11 +15,14 @@
 //   HEADLESS=1              only viable once the profile has logged in and the site
 //                           doesn't gate on headless UA (most do - see gotchas.md)
 //
+//   SELFHEAL=0              disable the self-heal pane (see the catch block below)
+//
 // Exit 0 + one JSON line on stdout on success. Exit 2 with a LOGIN: message when a
 // human must act; exit 1 for anything else. Debug artifacts under ./debug/<source>/.
 
 import { chromium } from "playwright";
-import { mkdirSync, writeFileSync, statSync } from "node:fs";
+import { mkdirSync, writeFileSync, statSync, appendFileSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,7 +45,14 @@ const HEADLESS = process.env.HEADLESS === "1";
 for (const d of [DOWNLOAD_DIR, PROFILE_DIR, DEBUG_DIR]) mkdirSync(d, { recursive: true });
 
 // ---------- Logging: an agent must be able to follow the run from the log alone ----------
-const log = (msg) => process.stderr.write(`[${SOURCE} ${new Date().toISOString()}] ${msg}\n`);
+const RUN_LOG = join(DEBUG_DIR, "run.log");
+const log = (msg) => {
+  const line = `[${SOURCE} ${new Date().toISOString()}] ${msg}\n`;
+  process.stderr.write(line);
+  // One file holds the whole run: the healer (and you, months later) reads this
+  // instead of re-driving the site. Appended, never truncated per run.
+  try { appendFileSync(RUN_LOG, line); } catch {}
+};
 const redact = (s) => String(s).replace(/((?:cookie|authorization|x-api-key)\s*[:=]\s*)\S.*?(?='|$)/gi, "$1<redacted>");
 
 let stepCounter = 0;
@@ -87,6 +97,23 @@ async function step(page, label, fn) {
 }
 
 class LoginRequired extends Error {}
+
+// Self-heal: hand the failure to a `claude` agent in a herdr pane below this one,
+// which fixes the script and retries it by driving THIS pane. Opt-out with
+// SELFHEAL=0; a no-op outside herdr, or when the helper was not copied next to
+// this script. Never allowed to change this script's exit code.
+function selfHeal(message) {
+  if (process.env.SELFHEAL === "0") return;
+  const helper = join(SCRIPT_DIR, "spawn-heal-pane.sh");
+  if (!existsSync(helper)) return;
+  spawnSync("bash", [helper,
+    "--script", fileURLToPath(import.meta.url),
+    "--cmd", [process.argv0, ...process.argv.slice(1)].join(" "),
+    "--log", RUN_LOG,
+    "--debug-dir", DEBUG_DIR,
+    "--error", message,
+  ], { stdio: "inherit" });
+}
 
 // ---------- Main ----------
 const context = await chromium.launchPersistentContext(PROFILE_DIR, {
@@ -138,8 +165,15 @@ try {
   // if (rows === 0) throw new Error("export has 0 rows");
   // console.log(JSON.stringify({ source: SOURCE, file, rows, bytes: statSync(file).size }));
 } catch (err) {
-  if (err instanceof LoginRequired) { log(`LOGIN: ${err.message}`); exitCode = 2; }
-  else { log(`FATAL: ${redact(err.message)}`); exitCode = 1; }
+  if (err instanceof LoginRequired) {
+    // Needs a human. No healer: an agent must never script around missing auth.
+    log(`LOGIN: ${err.message}`);
+    exitCode = 2;
+  } else {
+    log(`FATAL: ${redact(err.message)}`);
+    exitCode = 1;
+    selfHeal(redact(err.message));
+  }
 } finally {
   await context.close().catch(() => {});
 }
