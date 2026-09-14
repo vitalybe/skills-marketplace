@@ -77,8 +77,9 @@ Run the review roster via the aggregator, then apply and report.
 Invoke `/devflow:_internal-review-aggregator` with:
 
 - **Artifact** - `code`.
-- **Scope** - the branch's own changes since it forked:
-  `git diff "$(git merge-base origin/main HEAD)" HEAD`. Not plain
+- **Scope** - the branch's own changes since it forked: `git merge-base
+  origin/main HEAD` then `git diff <that-sha> HEAD` as two plain commands (a
+  worktree-isolated session refuses the chained `$(...)` form). Not plain
   `git diff origin/main` / `git diff main` - the aggregator explains why.
 - **Plan path** - the plan file, so the `official-anthropic-review-skill` lane
   can check plan↔implementation drift.
@@ -118,7 +119,8 @@ itself if a finding changed it. Commit the plan file (separate commit).
 Show the user:
 
 ```bash
-git diff "$(git merge-base origin/main HEAD)" --stat
+git merge-base origin/main HEAD   # then, as a separate plain command:
+git diff <sha-from-above> --stat
 ```
 
 Present to the user:

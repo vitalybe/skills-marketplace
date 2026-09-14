@@ -64,9 +64,11 @@ Invoke `/devflow:_internal-review-aggregator` with:
 
 - **Artifact** — `code`.
 - **Scope** - the PR's changes, diffed against the merge-base (not
-  `origin/main`'s tip - the aggregator explains why):
+  `origin/main`'s tip - the aggregator explains why), as two plain commands - a
+  worktree-isolated session refuses the chained `$(...)` form:
   ```bash
-  git diff "$(git merge-base origin/main HEAD)"
+  git merge-base origin/main HEAD
+  git diff <sha-from-above>
   ```
 - **Plan path** — the resolved plan (enables plan↔code drift, both directions:
   more shipped than promised, less shipped).

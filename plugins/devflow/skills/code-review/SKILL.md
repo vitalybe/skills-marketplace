@@ -11,14 +11,16 @@ report.
 ## Phase 1: Review
 
 Invoke `/devflow:_internal-review-aggregator` with **Artifact** = `code`, **Scope**
-= `git diff "$(git merge-base origin/main HEAD)" HEAD` (the merge-base form, not
-`git diff origin/main` - the aggregator explains why), plus any focus areas the
-user gave (and a plan path if one is in play). It resolves the code roster (see
+= the merge-base form (`git merge-base origin/main HEAD` then `git diff
+<that-sha> HEAD` as two plain commands - a worktree-isolated session refuses
+the chained `$(...)` form; not plain `git diff origin/main` - the aggregator
+explains why), plus any focus areas the user gave (and a plan path if one is in
+play). It resolves the code roster (see
 `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`), runs the lanes in parallel, and
 returns one triaged, source-tagged findings list - **Apply** vs **Decision
 needed** - with any reviewer skip notes.
 
-While it runs, skim `git diff "$(git merge-base origin/main HEAD)" --stat` yourself for the summary.
+While it runs, skim the same two-command merge-base diff (`--stat`) yourself for the summary.
 
 ## Phase 2: Apply obvious fixes
 
