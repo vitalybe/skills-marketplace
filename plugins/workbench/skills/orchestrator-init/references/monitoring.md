@@ -17,8 +17,8 @@ Monitoring is split so the orchestrator's context stays clean:
 ${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-init/scripts/track-children.py --parent <ORCH_PANE>
 ```
 
-It enumerates the children of `--parent` with `herdr agent children` (defaults
-to `$HERDR_PANE_ID`) and watches their `agent_status`:
+It enumerates the children of `--parent` with `herdr agent list` - every other
+agent in `--parent`'s workspace (`--parent` defaults to `$HERDR_PANE_ID`) and watches their `agent_status`:
 
 1. **Steady phase** - while nothing differs from the persisted baseline,
    re-check every **20s** (`--poll`).
@@ -122,8 +122,7 @@ Rules for classifying and acting on a change:
   permission gates directly in the tab; summarize them in the doc - do not relay
   them via AskUserQuestion or answer them yourself. Message a tab only for an
   obvious self-serve action (e.g. a design upload the orchestrator can do
-  itself), with `SendMessage` - see `/workbench:task-herdr`, "Talking to /
-  stopping a tab". The sole exception is a task the user explicitly told you to
+  itself), with `SendMessage` (`<name-slug> [<ref>]`, ref from `ListAgents`). The sole exception is a task the user explicitly told you to
   drive - then answer that task's gates per `/workbench:orchestrator-drive`.
 - Update the status doc to current state per
   [status-doc-format.md](status-doc-format.md) - current-state voice; never write
@@ -139,7 +138,7 @@ Rules for classifying and acting on a change:
   "typed over a working agent" and "fired into an option picker" failures comes
   from typing keystrokes. Keystrokes are for option pickers and Escape only.
 - **Answer a numbered-option gate with the bare option number**, atomically, via
-  `herdr-io.sh send <pane> --text "<n>" --force`. `SendMessage` does NOT clear a
+  `${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-drive/scripts/herdr-io.sh send <pane> --text "<n>" --force`. `SendMessage` does NOT clear a
   picker - it queues as the agent's next prompt while the gate stays open.
 - **Do not relaunch a second loop "just in case".** Exactly one tracker and one
   watcher. `pgrep -f "track-children.py|watch-pending.py"` before relaunching if
@@ -205,16 +204,14 @@ On each exit the orchestrator, INLINE:
 
 - If `added` is non-empty, spawn a bounded **dispatch subagent** (a `sonnet`
   `general-purpose` Agent that does non-blocking work and runs NO watcher). For
-  each added item it: passes the item's intent + the integration rule (e.g.
-  `no-pr` on a side branch) + the next tab number to `/workbench:task-herdr`,
-  **letting task-herdr author the exact prompt** and spawn the tab. It does NOT
-  pick a route - task-herdr tells the agent to run devflow and devflow triages the
-  depth (fast-path vs full flow) itself. It moves the item's block from
+  each added item it: spawns a tab with the item's intent + the integration rule (e.g.
+  `no-pr` on a side branch) + the next tab number, per orchestrator-init §4. It
+  does NOT pick a route - devflow triages the depth (fast-path vs full flow)
+  itself. It moves the item's block from
   `## Pending tasks` to `## Tasks` and records the spawn JSON.
 - Then **relaunches** exactly one watcher in the background (no `--reset`).
 
-The dispatch subagent never writes prompt prose itself - task-herdr is the single
-owner of the spawned tab's prompt text. Tab numbers come from the
+Tab numbers come from the
 `<scratchpad>/tab-counter` pointer (see orchestrator-init §5); read-and-increment
 it per spawn so tabs are labeled `T<n> - <Name>` by spawn order.
 

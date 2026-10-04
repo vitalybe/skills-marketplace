@@ -6,7 +6,8 @@ persists in the state dir so each run continues tracking where the last left off
 
 It does NOT loop forever inside the orchestrator. One invocation:
 
-  1. Enumerate the children of --parent via `herdr agent children` and compare
+  1. Enumerate the children of --parent via `herdr agent list` (other agents in
+     --parent's workspace) and compare
      their agent_status (and set membership) against the persisted baseline.
   2. Steady phase: while nothing differs from the baseline, re-check every
      --poll seconds (default 20).
@@ -65,9 +66,9 @@ def snapshot(parent, recursive):
     Returns None on a herdr/parse failure so the caller can retry rather than
     mistake a transient error for "every child disappeared".
     """
-    cmd = ["herdr", "agent", "children", parent, "--json"]
-    if recursive:
-        cmd.append("--recursive")
+    # ponytail: herdr 0.8 has no parent/child link, so "children" = every other
+    # agent in the parent's workspace.
+    cmd = ["herdr", "agent", "list"]
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     except Exception as e:  # noqa: BLE001 - any spawn failure is retriable
@@ -78,13 +79,14 @@ def snapshot(parent, recursive):
         return None
     try:
         agents = json.loads(out.stdout)["result"]["agents"]
+        ws = next(a["workspace_id"] for a in agents if a.get("pane_id") == parent)
     except Exception as e:  # noqa: BLE001
         print(f"track-children: bad herdr output: {e}", file=sys.stderr)
         return None
     return {
         a["pane_id"]: {"status": a.get("agent_status", "unknown"), "name": a.get("name", a["pane_id"])}
         for a in agents
-        if "pane_id" in a
+        if "pane_id" in a and a["pane_id"] != parent and a.get("workspace_id") == ws
     }
 
 

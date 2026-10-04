@@ -50,7 +50,7 @@ spawns unless they say so.
    Confirm it is actually parked at a gate and read the exact question. A tab in
    auto mode may have cleared the gate already - if it is working again, do not
    send anything; just update the doc. To check the raw status in one word, use
-   `${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh status <pane>`
+   `${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-drive/scripts/herdr-io.sh status <pane>`
    (prints `idle`/`working`/`blocked`/`missing`) rather than hand-parsing
    `herdr pane get ... | python3`.
 
@@ -62,7 +62,7 @@ spawns unless they say so.
      option number as a keystroke. `SendMessage` cannot clear a picker - it is
      queued as the agent's *next* prompt and the gate stays open.
      ```bash
-     ${CLAUDE_PLUGIN_ROOT}/skills/task-herdr/scripts/herdr-io.sh send <pane> --text "1" --force
+     ${CLAUDE_PLUGIN_ROOT}/skills/orchestrator-drive/scripts/herdr-io.sh send <pane> --text "1" --force
      ```
      `--force` skips the idle wait (a gate-blocked agent reports `blocked` and
      never goes idle) and the helper types + submits atomically - prefer it over
@@ -70,8 +70,7 @@ spawns unless they say so.
      submit and can leave the choice typed but unsent.
    - **Everything else** - a free-text question, an approval to type out, any
      steering: `SendMessage`, addressed by the task's herdr agent name plus its
-     `ListAgents` ref (see `/workbench:task-herdr`, "Talking to / stopping a
-     tab"). No idle guard needed; the message is queued and drained by the agent.
+     `ListAgents` ref (`<name-slug> [<ref>]`). No idle guard needed; the message is queued and drained by the agent.
      ```json
      {"to": "<title> [<ref>]", "message": "Plan approved - proceed to code."}
      ```

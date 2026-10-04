@@ -5,8 +5,8 @@ description: Initialize an orchestration session's live status document (the "ta
 
 # orchestrator-init - establish the session status doc
 
-An orchestration session runs several tasks in parallel (via `/workbench:orchestrate-agents`
-subagents and/or `/workbench:task-herdr` tabs). This skill sets up the single markdown
+An orchestration session runs several tasks in parallel (each in its own tracked
+herdr tab, spawned per §4). This skill sets up the single markdown
 **status document** ("the target") for the session and defines the contract
 for keeping it current. It does not open or monitor tasks.
 
@@ -83,7 +83,7 @@ these rules:
   gates directly in the tab; you summarize them in the doc - you do not relay
   them via AskUserQuestion or answer them yourself. Message a tab only for an
   obvious self-serve action (e.g. a design upload you can do yourself), with
-  `SendMessage` - see `/workbench:task-herdr`, "Talking to / stopping a tab". The
+  `SendMessage`, addressed as `<name-slug> [<ref>]` (ref from `ListAgents`). The
   one exception is when the user explicitly asks you to drive a specific task to
   completion - then answer that task's gates per `/workbench:orchestrator-drive`.
 - Update the target doc to current state per
@@ -127,12 +127,9 @@ watcher, so if the user writes one, tell them rather than silently ignoring it
 
 On each exit:
 
-- If `added` is non-empty, **dispatch each item** via `/workbench:task-herdr`:
-  pass the item's intent + the integration rule + the next **tab number** (see
-  "Tab numbering" below) and let task-herdr author the exact prompt and spawn the
-  tab. The orchestrator does NOT write prompt prose and does NOT pick the route -
-  task-herdr tells the agent to run devflow, and devflow triages the depth
-  (fast-path vs full flow) itself. Move the item's block from `## Pending tasks`
+- If `added` is non-empty, **dispatch each item** as a tab (below), using the
+  next **tab number** (see "Tab numbering"). Do NOT pick the route - devflow
+  triages the depth (fast-path vs full flow) itself. Move the item's block from `## Pending tasks`
   into `## Tasks` with a **narrow** edit of just that block - the user has the doc
   open and is usually typing the next item, so never rewrite the section and
   never reconstruct their neighbouring lines (see monitoring.md, "The doc is a
@@ -142,6 +139,20 @@ On each exit:
   is the watcher's idle heartbeat, not news.
 - Then **relaunch exactly one** watcher in the background (no `--reset` - the
   baseline persists across the exit/relaunch gap so nothing is missed).
+
+Spawn one tracked tab per task (in your own workspace, so the tracker sees it):
+
+```bash
+WS=$(herdr pane current | python3 -c 'import sys,json; print(json.load(sys.stdin)["result"]["pane"]["workspace_id"])')
+PANE=$(herdr tab create --workspace "$WS" --cwd <repo> --label "T<n> - <Name>" --no-focus \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
+herdr agent start <name-slug> --kind claude --pane "$PANE" --timeout 120000 -- --name <name-slug>
+herdr agent prompt <name-slug> "/aie-devflow:start-flow-worktree <intent>. Integration: <rule>."
+```
+
+The prompt states only intent + integration rule; devflow triages the route. If `agent start`
+rejects the pane as busy, the new shell is still running its startup files - retry
+after a second. `<name-slug>` is `[a-z0-9_-]`, max 32 chars.
 
 Keep exactly one watcher alive; relaunch one per exit. Full contract:
 [references/monitoring.md](references/monitoring.md).
@@ -158,16 +169,15 @@ file that survives compaction:
 
 One line: the next integer (start at `1`). On **each** spawn - whether an
 auto-dispatch from the pending-watcher or a task the user asks you to open -
-read the counter, pass that value to `/workbench:task-herdr` as its **tab
-number**, then increment and rewrite the file. The counter only ever grows: it
+read the counter, use it in the spawned tab's label, then increment and rewrite
+the file. The counter only ever grows: it
 counts merged/closed tasks too, so numbers are never reused and the sequence
-stays stable as tasks come and go. task-herdr applies the `T<n> -` prefix to the
-tab label at creation (the herdr agent name stays the raw title).
+stays stable as tasks come and go. The `T<n> -` prefix lives only on the tab
+label; the herdr agent name stays the plain slug.
 
 ## Pointers
 
 - Doc structure and line format: [references/status-doc-format.md](references/status-doc-format.md).
 - The tracker contract and the pending-tasks watcher: [references/monitoring.md](references/monitoring.md).
-- Opening the tasks themselves, and interacting with a tab (send / stop): `/workbench:orchestrate-agents` / `/workbench:task-herdr`.
-- task-herdr owns the exact prompt text for a spawned tab; callers pass intent + flags (integration, optional route override) and defer to it. Route depth is decided by devflow's triage, not the orchestrator.
+- Answering an option picker or interrupting a tab: `orchestrator-drive/scripts/herdr-io.sh send <pane> --text "<n>" --force` / `herdr-io.sh stop <pane>`.
 - Driving a task's in-pane gates to completion on the user's explicit request: `/workbench:orchestrator-drive`.

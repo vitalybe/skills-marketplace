@@ -5,7 +5,7 @@
 #   wait-idle  block until the pane's agent_status has been `idle` on N
 #              CONSECUTIVE polls (a streak). herdr reports a sub-second `idle`
 #              blip BETWEEN an agent's tool calls / thinking transitions, so a
-#              single idle reading (e.g. `herdr wait agent-status --status idle`)
+#              single idle reading (e.g. `herdr agent wait --until idle`)
 #              false-fires long before the agent has actually stopped at a gate.
 #              Requiring a streak of consecutive idle reads filters those blips
 #              and only returns on sustained idle.
