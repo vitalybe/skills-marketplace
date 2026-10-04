@@ -161,6 +161,16 @@ while true; do
     exit 0
   fi
   if [ "$state" = "CLOSED" ]; then
+    # An auto-merge records `closed` and `merged` in the same second, and a poll
+    # can land between them (seen on drivenets/ai-enablement#573). Re-read
+    # mergedAt briefly before calling it closed.
+    for _ in 1 2 3; do
+      sleep 2
+      if [ -n "$(gh pr view --json mergedAt --jq '.mergedAt // empty' 2>/dev/null || true)" ]; then
+        echo "PR for '$branch' merged." >&2
+        exit 0
+      fi
+    done
     echo "error: PR for '$branch' was closed without merging" >&2
     echo "  checks: ${tally:-(none reported)}" >&2
     exit 1
