@@ -3,7 +3,8 @@ name: schedule-work-meeting
 description: >-
   Schedules a work meeting end-to-end: resolves attendee names to emails,
   finds a mutually-free timeslot honoring working-hours and clustering
-  preferences, and opens a prefilled Outlook invite ready to send. Use
+  preferences, and sends the invite via Microsoft Graph (or opens a prefilled
+  Outlook draft on request). Use
   whenever the user wants to "schedule/set up/book a meeting", "find a
   time with <person>", "invite <person> to a meeting", "put something on
   my and X's calendar", or gives a subject + people + rough time. Handles
@@ -16,7 +17,7 @@ description: >-
 # Schedule a work meeting
 
 Turn a loose request ("meeting with Yinon, Sunday, 1hr, subject X") into a
-prefilled, ready-to-send Outlook invite.
+sent Outlook invite.
 
 All calendar work goes through one CLI, which talks to Microsoft Graph
 directly:
@@ -82,29 +83,43 @@ Even then, say which days you covered and offer the tentative options.
 If the user gave an exact time, run `free-slots` for that day only
 (`--from <day> --days 1`) and check that the time shows up as free.
 
-### 3. Propose and confirm
+### 3. Confirm only when choosing between separate options
 
-Show the top 2-3 picks with their reasons, recommend one, and get the user's
-choice. Skip this step if the user gave an exact time and it's free.
+Act without asking when every choice is unambiguous: one attendee match, and
+either an exact time or a single clear slot. Ask first when there is a real
+choice to make:
 
-### 4. Open the invite
+- several attendee matches (step 1),
+- several candidate slots - show the top 2-3 picks with their reasons,
+  recommend one, and get the user's choice,
+- no subject that can be inferred.
+
+An exact time that is busy is not a choice: book it, and flag the overlap in
+the final summary.
+
+### 4. Send the invite
+
+```bash
+$OC schedule --title "<subject>" --start-time "2026-10-13 11:00" --duration 60 --attendees a@x.com,b@x.com
+```
+
+This creates the event through Graph and **sends invitations immediately**.
+Use `--location` / `--body` for optional fields. Afterwards, summarize the
+subject, local time and attendees, and mention any overlap with an existing
+entry.
+
+Only when the user asks to review before sending ("let me look first", "draft
+it"), open a draft instead:
 
 ```bash
 $OC compose --title "<subject>" --start-time "2026-10-13 11:00" --duration 60 --attendees a@x.com,b@x.com
 ```
 
-This opens an Outlook Web compose window in the default browser. Subject,
-time and attendees are prefilled, and the window has a live **Send** button.
-Nothing is sent until the user clicks it. Use `--no-open` to print the link
-without opening the browser, and `--location` / `--body` for optional
-fields.
-
-Tell the user the invite is ready to send, and summarize the subject, local
-time and attendees.
-
-`$OC schedule` creates the event through Graph and **sends invitations
-immediately**. Use it only when the user explicitly asks you to send the
-invite yourself.
+This opens an Outlook Web compose window with subject, time and attendees
+prefilled. Nothing is sent until the user clicks **Send**. Use `--no-open` to
+print the link without opening the browser. If a `compose` window was already
+opened for the same meeting, don't also run `schedule` unless the user closed
+it: the attendee would get two invites.
 
 ## Notes & gotchas
 
@@ -113,10 +128,12 @@ invite yourself.
   in one line and move on.
 - **"Unavailable" on an attendee chip** in OWA compose usually means free/busy
   hasn't loaded yet. Trust `free-slots`.
+- **`schedule` cannot be undone from here.** That is why step 3 asks whenever
+  there is a real choice to make.
 - **Auth:** the first run, or a run after the token expires, prints a
   device-code prompt to stderr. Relay the URL and code to the user, then wait
   for the user to sign in. The token cache is in `~/.cache/outlook-calendar/`.
-- **Optional attendees:** the deeplink has no reliable parameter for them, so
+- **Optional attendees:** `compose` has no reliable parameter for them, so
   everyone is added as required. Mention this if it matters to the user.
 - **Don't** create events with AppleScript against New Outlook: it doesn't set
   an organizer, so the invite can't be sent. Don't use `.ics` files either:
