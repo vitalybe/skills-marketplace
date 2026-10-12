@@ -23,7 +23,7 @@ All calendar work goes through one CLI, which talks to Microsoft Graph
 directly:
 
 ```bash
-OC="node $HOME/hq/scripts/outlook-calendar/index.ts"
+OC="$HOME/hq/bin/outlook-calendar"
 ```
 
 `$OC --help` and `$OC <command> --help` are the reference. Times are local
