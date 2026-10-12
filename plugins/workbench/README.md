@@ -24,6 +24,10 @@ Invoked as `/workbench:<name>`.
 | `orchestrator-drive` | Take over and drive a named orchestration task's in-pane gates to completion on the user's explicit request (marks it 🚗 in the tab and status doc). |
 | `herdr-watch-pane` | Event-driven monitoring of a sibling herdr pane: a debounced background watcher re-invokes you only when the pane settles after a real change. |
 
+## Hooks
+
+A `hooks/` module (loaded by the engine, not a skill) renames the running session from outside. `echo "new title" > /tmp/claude-rename/<session-id>` runs `/rename` in that session. Wrap the write in `timeout 2` in scripts: the pipe blocks when no session is reading it.
+
 ## Prerequisites
 
 The skill **files** ship with the plugin; their **runtimes, CLIs, and credentials** must exist in the environment where you run them. Each skill checks and reports what it needs.
