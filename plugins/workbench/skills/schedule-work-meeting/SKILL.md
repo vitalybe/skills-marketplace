@@ -8,7 +8,7 @@ description: >-
   time with <person>", "invite <person> to a meeting", "put something on
   my and X's calendar", or gives a subject + people + rough time. Handles
   optional people, date, time, and duration (default 30 min). Resolves
-  names via Slack/Outlook and disambiguates using the vault people
+  names via the Outlook people API and disambiguates using the vault people
   registry. Distinct from /workbench:task-obsidian (personal to-dos) and
   /workbench:task-jira (work tickets).
 ---
@@ -18,179 +18,106 @@ description: >-
 Turn a loose request ("meeting with Yinon, Sunday, 1hr, subject X") into a
 prefilled, ready-to-send Outlook invite.
 
+All calendar work goes through one CLI, which talks to Microsoft Graph
+directly:
+
+```bash
+OC="node $HOME/hq/scripts/outlook-calendar/index.ts"
+```
+
+`$OC --help` and `$OC <command> --help` are the reference. Times are local
+(`Asia/Jerusalem`), and the script handles timezone and DST itself.
+
 ## Inputs (all optional except at least one attendee)
 
-- **Attendee name(s)** - one or more people to invite.
-- **Subject** - meeting title. If missing, ask or infer a short one.
-- **Date / day** - e.g. "Sunday", "tomorrow", "July 8". Default: soonest sensible workday.
-- **Time** - specific start, or leave open to pick from free slots.
-- **Duration** - default **30 minutes** if unspecified.
-- **Window** - default working hours **09:00-19:00 local** unless the user says otherwise.
-
-## Tools used
-
-- `mcp__claude_ai_Microsoft_365__get_me` - your identity / primary email.
-- `mcp__claude_ai_Slack__slack_search_users` - resolve a name to a person + email.
-- `mcp__claude_ai_Microsoft_365__find_meeting_availability` - mutual free/busy.
-- `mcp__claude_ai_Microsoft_365__outlook_calendar_search` - your existing events (for clustering).
-- `scripts/free_windows.py` - folds the raw availability probes into ranked
-  local-time windows (see step 3).
-- `/Users/vbelman/obsidian/meta/people.md` - disambiguation registry (roles/aliases).
-- The system default browser (`open <url>`) - to launch the prefilled invite.
-
-There is **no MCP/connector that creates Outlook events**. Creation is done by
-opening an **Outlook Web compose deeplink** (see step 6).
+- **Attendees** - names or emails.
+- **Subject** - if it's missing, infer a short one or ask.
+- **Date / day** - "Sunday", "tomorrow", "July 8". Default: today onward.
+- **Time** - a specific start, or leave it open and pick from free slots.
+- **Duration** - default **30 minutes**.
+- **Window** - default **09:00-19:00 local**. This is a hard bound: the user
+  set it deliberately, so never suggest slots outside it.
 
 ## Steps
 
-### 1. Parse the request
-Extract attendee name(s), subject, date, time, duration. Apply defaults
-(duration 30 min; window 09:00-19:00 local). Note today's date and day-of-week
-so relative days ("Sunday", "tomorrow") resolve correctly - and trust the
-`nowDateTime` returned by the availability API over the system prompt if they
-disagree.
-
-### 2. Resolve each attendee to an email
-For every name:
-1. `slack_search_users` with the name.
-2. **Exactly one hit** → use its email. No need to bother the user.
-3. **Multiple hits** → read `people.md` to find the most likely candidate by
-   role/context, then **ask the user to confirm**, presenting the top
-   candidates (name, title, email) with your best guess first.
-4. **Zero hits** → try `outlook_email_search` by name (matches senders/recipients
-   across mail), or ask the user for the email.
-
-Also call `get_me` to get your own primary email (you are the organizer).
-
-### 3. Probe availability at 30-minute granularity
-
-`find_meeting_availability` returns **one verdict per block of the `duration`
-you ask for**. Ask for 90 minutes and a single busy half-hour anywhere inside
-the block stamps the whole 90 minutes `busy` or `oof`. Coarse probes therefore
-manufacture false negatives that read like hard facts: a real session reported
-"he's out of office every afternoon" and "no window exists in the next month"
-off 90-minute probes, and a 30-minute rescan of the same days found several
-fully-free windows.
-
-So **always probe with `duration: 30`**, whatever the meeting length, and let
-`scripts/free_windows.py` do the block-fitting.
-
-- One call **per candidate day**, with `afterDateTime`/`beforeDateTime` bounding
-  that day's working window **in UTC** (Israel 09:00-19:00 local = 06:00-16:00Z
-  in summer, 07:00-17:00Z in winter), `duration: 30`, `maxCandidates: 50`. Fire
-  the days off in parallel. The current user is auto-included.
-- Per-day matters because the API knows nothing about working hours and will
-  happily offer 03:00. Hand it a multi-day range and day one's night hours eat
-  all 50 candidates before it ever reaches day two.
-- **Scan in waves.** Start with the next 4-5 workdays and widen only when the
-  script comes back empty. Sweeping three weeks up front is ~15 calls to answer
-  a question the first five days usually settle.
-- Transcribe the returned rows into one compact grid - a letter per person per
-  slot - and run the script over it:
-
-  ```
-  #names orel vasily amir you
-  2026-09-16 05:00 ffff
-  2026-09-16 10:00 ftff
-  ```
-  ```bash
-  python3 scripts/free_windows.py --duration 90 --window 09:00-19:00 scan.txt
-  ```
-
-  `f`/`t`/`b`/`o`/`u`, times in UTC, organizer included as a name, and **leave
-  out the slots the API left out** - the script reads those gaps as busy. Don't
-  copy the JSON across verbatim: it already sits in your context, and the grid
-  says the same thing in a twentieth of the tokens.
-
-  The script shifts to local time with DST, takes the worst status per slot,
-  merges consecutive slots, clamps to working hours, and prints the runs long
-  enough to hold the meeting - split into `EVERYONE FREE` and `ONE OR MORE
-  TENTATIVE` with the holders named. Read the windows off its output rather
-  than doing interval arithmetic in your head; that is where hand-scanning
-  quietly goes wrong. `--selftest` checks the stitcher, and it also accepts raw
-  JSON if a response is already on disk.
-
-For clustering, also call `outlook_calendar_search` (query `*`) for **your own**
-events across the candidate days - free/busy tells you a slot is open, not what
-it sits next to. That works on the user's own calendar only; passing
-`calendarOwnerEmail` for a colleague 404s (`ErrorItemNotFound`) without delegate
-access, so don't spend a call on it - free/busy is all you get for other people.
-
-**The working window is a hard bound, not a hint.** Don't drift below the floor
-because a slot down there looks convenient; the user set 09:00 deliberately and
-will correct you.
-
-**Timezone care:** the availability API returns each slot's `dateTime` with a
-`timeZone` field, and often falls back to **UTC** when the mailbox zone is
-unavailable. Always convert to the user's **local** zone (Israel: UTC+3 in
-summer / +2 in winter) before reasoning or presenting. Never show raw UTC to the
-user.
-
-### 4. Rank slots by preference
-Among slots where **all attendees are free** and inside the working window:
-1. Prefer slots **adjacent to an existing meeting** (back-to-back, before or
-   after) - keeps the day clustered.
-2. Prefer slots that **fill a gap between two existing meetings**.
-3. Avoid fragmenting large free blocks and avoid `tentative` conflicts when a
-   fully-free option exists.
-4. Break ties by earliest in the day.
-
-### 5. Propose and confirm
-Show the top 2-3 ranked slots in **local time** with a one-line reason each,
-recommend one, and get the user's pick. Skip if the user already gave an exact
-time and it's free.
-
-### 6. Create the invite via Outlook Web deeplink
-Build this URL (this is the proven mechanism - no AppleScript, no ICS, works
-regardless of New/Legacy Outlook):
-
-```
-https://outlook.office.com/calendar/deeplink/compose?subject=<SUBJECT>&startdt=<START>&enddt=<END>&to=<EMAILS>
-```
-
-- `<SUBJECT>` - URL-encoded subject.
-- `<START>` / `<END>` - **naive local wall-clock** ISO, no timezone suffix,
-  e.g. `2026-07-05T11:00:00` (OWA interprets these in the mailbox zone; do NOT
-  append `Z`).
-- `<EMAILS>` - comma-separated attendee emails for the `to=` param. This
-  resolves each into a proper required-attendee chip.
-- Optional: `&location=<enc>`, `&body=<enc>`.
-
-Open it in the user's default browser (already logged into OWA):
+### 1. Resolve attendees
 
 ```bash
-open "https://outlook.office.com/calendar/deeplink/compose?subject=...&startdt=...&enddt=...&to=..."
+$OC resolve "<name>"
 ```
 
-The compose window opens with subject, time, and attendees prefilled and a live
-**Send** button.
+The command prints matches best-first, ranked by how much the user interacts
+with each person, as `Name <email> - title, department`.
 
-### 7. Hand off for send
-Tell the user the invite is prefilled and they just need to click **Send**
-(sending an invite is outward-facing - let the user do the final click unless
-they explicitly ask you to auto-send). Summarize what was created: subject,
-local date/time, attendees.
+- **One line** - use that email.
+- **Several lines** - read `/Users/vbelman/obsidian/meta/people.md` for role
+  and alias context, then ask the user to confirm. Show the top candidates,
+  with your best guess first.
+- **No match** - ask the user for the email.
+
+Pass emails, not names, to the later commands. Those commands can resolve
+names too, but they exit on any ambiguity.
+
+### 2. Find slots
+
+```bash
+$OC free-slots --attendees a@x.com,b@x.com --duration 60 [--from 2026-10-18] [--days 5] [--window 09:00-19:00]
+```
+
+This command scans the next N workdays (Sun-Thu, starting from today and
+skipping the past part of today). The organizer is always included. It
+prints three sections:
+
+- `TOP PICKS` - already ranked: fully free first, then slots between two of
+  the user's meetings, then slots next to one, then the earliest. Each pick
+  comes with a one-line reason.
+- `EVERYONE FREE` - the merged free windows for each day.
+- `ONE OR MORE TENTATIVE` - windows where someone is tentative or unknown,
+  with the people holding them named.
+
+If the result is empty, widen the scan with `--from` (the next week) or a
+larger `--days`. Don't declare that no slot exists until you've done that.
+Even then, say which days you covered and offer the tentative options.
+
+If the user gave an exact time, run `free-slots` for that day only
+(`--from <day> --days 1`) and check that the time shows up as free.
+
+### 3. Propose and confirm
+
+Show the top 2-3 picks with their reasons, recommend one, and get the user's
+choice. Skip this step if the user gave an exact time and it's free.
+
+### 4. Open the invite
+
+```bash
+$OC compose --title "<subject>" --start-time "2026-10-13 11:00" --duration 60 --attendees a@x.com,b@x.com
+```
+
+This opens an Outlook Web compose window in the default browser. Subject,
+time and attendees are prefilled, and the window has a live **Send** button.
+Nothing is sent until the user clicks it. Use `--no-open` to print the link
+without opening the browser, and `--location` / `--body` for optional
+fields.
+
+Tell the user the invite is ready to send, and summarize the subject, local
+time and attendees.
+
+`$OC schedule` creates the event through Graph and **sends invitations
+immediately**. Use it only when the user explicitly asks you to send the
+invite yourself.
 
 ## Notes & gotchas
 
-- **Never announce "no slot exists"** off a coarse or single query - that claim
-  needs the 30-minute scan of step 3 across every candidate day behind it. If
-  the scan genuinely finds nothing clean, say which days you covered and offer
-  the best `tentative`-overlap options instead of declaring a dead end.
-- **An attendee's own word beats their free/busy.** When the user relays "X said
-  16:30 works", book it even if the calendar disagrees - people block time they
-  are willing to give up. Flag the overlap in one line and move on; don't
-  re-derive or argue the point.
-- **"Unavailable" on an attendee chip** in the OWA compose often just means
-  free/busy hasn't loaded yet, not a real conflict. Trust
-  `find_meeting_availability` - if it says free, the slot is fine.
-- **Do not** try to create the event with AppleScript against **New Outlook** -
-  it won't attach an organizer/From, so the invite can't be sent. The deeplink
-  avoids this entirely.
-- **Do not** rely on `.ics` files or Apple Calendar AppleScript - the former
-  often opens read-only, the latter silently drops attendees.
-- If the user isn't logged into OWA in their default browser, they'll hit a
-  sign-in once; after that the deeplink lands on the compose form.
-- Multiple attendees: put them all in `to=` (comma-separated). There is no
-  reliable deeplink param for optional attendees - keep everyone required, or
-  mention the distinction to the user.
+- **An attendee's own word beats their free/busy.** When the user relays "X
+  said 16:30 works", book it even if the calendar disagrees. Flag the overlap
+  in one line and move on.
+- **"Unavailable" on an attendee chip** in OWA compose usually means free/busy
+  hasn't loaded yet. Trust `free-slots`.
+- **Auth:** the first run, or a run after the token expires, prints a
+  device-code prompt to stderr. Relay the URL and code to the user, then wait
+  for the user to sign in. The token cache is in `~/.cache/outlook-calendar/`.
+- **Optional attendees:** the deeplink has no reliable parameter for them, so
+  everyone is added as required. Mention this if it matters to the user.
+- **Don't** create events with AppleScript against New Outlook: it doesn't set
+  an organizer, so the invite can't be sent. Don't use `.ics` files either:
+  they often open read-only.
