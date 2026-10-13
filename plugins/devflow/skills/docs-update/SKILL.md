@@ -99,7 +99,7 @@ the user will ask.
 **CLAUDE.md:** add to the right section, match the existing format, be brief.
 
 **Diagrams:** follow the diagram rules in
-`${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`, plus: a diagram **replaces** the
+`_devflow-shared/docs/plan-format.md`, plus: a diagram **replaces** the
 prose it describes, never supplements it; a 1-line ASCII flow (`A → B → C`) is
 fine for trivial cases; when updating an existing doc, migrate qualifying prose
 blocks to mermaid and leave existing short ASCII alone.

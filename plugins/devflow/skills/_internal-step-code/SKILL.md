@@ -1,6 +1,7 @@
 ---
 name: _internal-step-code
 description: Implement the plan for a development task, run tests, and do a code review. Use when the plan is approved and it's time to write code, or when the user invokes /devflow:_internal-step-code. Also trigger on phrases like "implement this", "start coding", "build it", "write the code". Includes sub-agent code review and user approval. This is phase 3 of the dev task flow.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *), mcp__dn-mcp-server__atlassian_jira_get_issue, mcp__dn-mcp-server__atlassian_jira_get_transitions, mcp__dn-mcp-server__atlassian_jira_transition_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_transitions, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_transition_issue
 ---
 
 # Implementation & Code Review
@@ -11,7 +12,7 @@ below.
 ## General
 
 <common-instructions>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/flow-common-start.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/flow-common-start.md`
 </common-instructions>
 
 ## Step: Read the Plan
@@ -34,7 +35,7 @@ continue from there.
 - Git commit when implementation is complete (before moving to tests)
 
 <developer-guidelines>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/developer-guidelines.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/developer-guidelines.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/developer-guidelines.md`
 </developer-guidelines>
 
 ## Step: Run Tests
@@ -84,7 +85,7 @@ Invoke `/devflow:_internal-review-aggregator` with:
 - **Plan path** - the plan file, so the `official-anthropic-review-skill` lane
   can check plan↔implementation drift.
 
-It resolves the code roster (see `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`),
+It resolves the code roster (see `_devflow-shared/docs/review-roster.md`),
 runs the lanes in parallel, dedups across them, and returns one triaged,
 source-tagged findings list (Apply / Decision needed) plus any reviewer skip
 notes.
@@ -109,7 +110,7 @@ specifies, since the plan is where the user reads them - and update the plan
 itself if a finding changed it. Commit the plan file (separate commit).
 
 <report-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/review-report-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/review-report-format.md`
 </report-format>
 
 ## Step: User Review

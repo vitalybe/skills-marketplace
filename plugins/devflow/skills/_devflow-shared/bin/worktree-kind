@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Print `main-repo` or `worktree` for the current checkout.
+#
+# A script rather than a `[ "$(...)" = "$(...)" ] && ... || ...` one-liner in a
+# SKILL.md: the harness parses each injected command and refuses any that still
+# holds a value it cannot resolve, and a `$(...)` substitution is exactly that -
+# which reads as if the skill itself were broken.
+#
+# Always exits 0. A `!`...`` block whose command exits non-zero aborts the whole
+# skill load, and the call sites now name a second path after `||` for the agent
+# pod, so a non-zero exit here would run that arm too and fail the block. The
+# printed word is the signal; the exit code carries nothing.
+set -uo pipefail
+
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || common=''
+own=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null) || own=''
+
+if [ -z "$common" ] || [ -z "$own" ]; then
+  echo "not-a-repo"
+  exit 0
+fi
+
+# A linked worktree's own git dir is .git/worktrees/<name> under the shared one.
+if [ "$common" = "$own" ]; then
+  echo "main-repo"
+else
+  echo "worktree"
+fi

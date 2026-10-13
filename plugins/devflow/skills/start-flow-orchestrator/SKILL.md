@@ -1,6 +1,7 @@
 ---
 name: start-flow-orchestrator
 description: The devflow flow with this SDLC's orchestrator phase and gate rules layered on - emits the step markers, blocks the merge on a human sign-off gate, and closes the run. Invoke instead of /devflow:start-flow when the flow runs as a step in an orchestrator workflow, or on phrases like "run the flow under the orchestrator", "start the flow with markers".
+allowed-tools: Bash(/*/skills/orchestrator-phase/bin/orchestrator-env), Bash(echo:*)
 ---
 
 # Dev Task Orchestrator - orchestrated run
@@ -15,7 +16,7 @@ top-level turn, and a sub-agent's never do.
 ## Step 1: Confirm the environment
 
 <orchestrator-run>
-!`${CLAUDE_PLUGIN_ROOT}/../../aie-orchestrator-skills/*/bin/orchestrator-env 2>/dev/null || echo "detection-unavailable"`
+!`${CLAUDE_PLUGIN_ROOT}/../aie-orchestrator-skills/skills/orchestrator-phase/bin/orchestrator-env 2>/dev/null || /home/agent/.cursor/skills/orchestrator-phase/bin/orchestrator-env 2>/dev/null || echo "detection-unavailable"`
 </orchestrator-run>
 
 - **`yes`**: an orchestrated run. Continue with step 2.
@@ -46,7 +47,7 @@ gate relaying. These rules apply while you follow it:
 ## Step 3: The sign-off gate
 
 Block the merge on a human. Invoke `aie-orchestrator-skills:orchestrator-gate`
-with email `rchocron@drivenets.com` and reason `devflow sign-off before close`,
+with gate name `devflow-close` and reason `devflow sign-off before close`,
 emit its marker, and **end the turn** - no close sub-agent, no further edits,
 nothing after the marker implying more work this turn.
 

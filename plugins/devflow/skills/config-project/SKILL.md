@@ -1,6 +1,7 @@
 ---
 name: config-project
 description: Configure per-project settings for the devflow workflow - task system and merge strategy. Writes to `project-config.toml` in the project root. Use when the user invokes `/devflow:config-project`, or when another devflow skill reports a missing required key.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/project-config *)
 ---
 
 # Project Config
@@ -10,7 +11,7 @@ Reads and updates `project-config.toml` in the project root. One key per questio
 ## Step: Load Current Config
 
 <current-config>
-!`${CLAUDE_PLUGIN_ROOT}/bin/project-config "[[No project-config.toml yet - will create one]]"`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/project-config "[[No project-config.toml yet - will create one]]" || /home/agent/.cursor/skills/_devflow-shared/bin/project-config "[[No project-config.toml yet - will create one]]"`
 </current-config>
 
 If the user passed arguments naming specific keys to (re)configure, only touch those. Otherwise, prompt for every key below that is missing from the current config.
@@ -22,7 +23,7 @@ For each missing key, use `AskUserQuestion` to ask the user. Header = key name. 
 ### `task-system` (string)
 
 **Not prompted.** Always written as `task-system = "jira"`. The
-dispatcher (`${CLAUDE_PLUGIN_ROOT}/bin/tasks`) and every devflow skill target JIRA;
+dispatcher (`_devflow-shared/bin/tasks`) and every devflow skill target JIRA;
 no other backend is supported.
 
 ### `use-pull-requests` (bool)

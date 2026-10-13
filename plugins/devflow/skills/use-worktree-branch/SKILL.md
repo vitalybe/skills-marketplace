@@ -1,6 +1,7 @@
 ---
 name: use-worktree-branch
 description: Make sure the current work is happening in a dedicated git worktree on its own branch, creating and switching into one if it is not. Carries dirty changes over with a stash/pop (never commits them), and if commits already landed on main/master it renames that branch into the worktree branch and recreates main from origin/main. Use whenever the user says "move this to a worktree", "put this on its own branch", "I'm on main again, fix it", "get me off master", "set up a worktree for this task", "isolate this work", or starts real work while sitting on the default branch. Also use as a preflight before implementing a task, so nothing accumulates on a shared branch.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/worktree-kind), Bash(git rev-parse:*), Bash(git status:*), Bash(git worktree:*), Bash(git symbolic-ref:*), Bash(git branch:*), Bash(git log:*)
 ---
 
 # use-worktree-branch - get the work onto an isolated worktree branch
@@ -30,7 +31,7 @@ or errored, or to get fresh state after you stash, switch, or `cd`.
 </toplevel>
 
 <checkout-kind>
-!`${CLAUDE_PLUGIN_ROOT}/bin/worktree-kind`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/worktree-kind || /home/agent/.cursor/skills/_devflow-shared/bin/worktree-kind`
 </checkout-kind>
 
 <current-branch>

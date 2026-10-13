@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Reviews the current changes against main and reports findings. Use when the user asks to "code review", "review my changes", or "review this branch" without a specific PR number. Runs the internal review engine, applies obvious fixes, and presents a structured breakdown.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *)
 ---
 
 # Code Review
@@ -16,7 +17,7 @@ Invoke `/devflow:_internal-review-aggregator` with **Artifact** = `code`, **Scop
 the chained `$(...)` form; not plain `git diff origin/main` - the aggregator
 explains why), plus any focus areas the user gave (and a plan path if one is in
 play). It resolves the code roster (see
-`${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`), runs the lanes in parallel, and
+`_devflow-shared/docs/review-roster.md`), runs the lanes in parallel, and
 returns one triaged, source-tagged findings list - **Apply** vs **Decision
 needed** - with any reviewer skip notes.
 
@@ -41,7 +42,7 @@ Present using the shared report format. Everything goes to chat - this skill doe
 not record findings in a plan file (that's the flow's review steps):
 
 <report-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/review-report-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/review-report-format.md`
 </report-format>
 
 - **Summary** — 2-4 sentences: what changed, its shape, and a one-line recommendation.

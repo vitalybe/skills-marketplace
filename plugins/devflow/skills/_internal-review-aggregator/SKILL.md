@@ -1,6 +1,7 @@
 ---
 name: _internal-review-aggregator
 description: Shared review engine - convenes the reviewer roster for a plan or code change, fans the reviewers out in parallel, dedups and triages their findings, and returns one consolidated list. Invoked by the review callers (_internal-step-plan, _internal-step-code, code-review, pr-review); not called directly by the user. Does not apply fixes or render a user-facing report - the caller does that.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *), Bash(/*/skills/_devflow-shared/bin/project-config *), Bash(/*/skills/_devflow-shared/bin/doctor)
 ---
 
 # Review Aggregator
@@ -28,15 +29,15 @@ fixes and renders the report; this skill only produces the findings.
 ## Context
 
 <review-roster>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/review-roster.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/review-roster.md`
 </review-roster>
 
 <project-config>
-!`${CLAUDE_PLUGIN_ROOT}/bin/project-config "[[no project-config.toml - exclude nothing]]"`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/project-config "[[no project-config.toml - exclude nothing]]" || /home/agent/.cursor/skills/_devflow-shared/bin/project-config "[[no project-config.toml - exclude nothing]]"`
 </project-config>
 
 <doctor>
-!`${CLAUDE_PLUGIN_ROOT}/bin/doctor`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/doctor || /home/agent/.cursor/skills/_devflow-shared/bin/doctor`
 </doctor>
 
 ## Process
@@ -66,7 +67,7 @@ In a **single message**, dispatch every selected reviewer per its "how to run"
 entry in the roster:
 
 - The built-in lane (`plan`) - do this analysis yourself, against
-  `${CLAUDE_PLUGIN_ROOT}/docs/plan-guidelines.md`.
+  `_devflow-shared/docs/plan-guidelines.md`.
 - Sub-agent lanes (`official-anthropic-review-skill`, `ponytail`, `codex`) -
   spawn one sub-agent each, prompted exactly as its roster entry says (the
   sub-agent reads whatever files that entry names). Pass the plan path through
@@ -97,7 +98,7 @@ Return, as data (not a rendered report):
   Apply / Decision-needed split, each tagged with its `source`(s).
 
   <report-format>
-  !`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
+  !`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/review-report-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/review-report-format.md`
   </report-format>
 
 - A one-line **summary**, and - if a plan path was given - the plan↔code deltas.

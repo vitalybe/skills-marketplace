@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Resolve the plan-file path for a task. Pure git + filesystem.
+#
+# JIRA is not here. Reads and status changes go through the MCP tools named in
+# `../docs/jira-tools.md`; this script only answers "which file holds the plan",
+# which needs no credentials and so works identically on a laptop and in a
+# marketplace-provisioned agent pod.
+#
+# Error contract, shared with `mdexec` and the bash siblings: errors go to
+# STDOUT, colored on a TTY and in `[[Error: ...]]` marker form otherwise, so an
+# error inside a `!`...`` block reaches the agent as text instead of vanishing.
+set -uo pipefail
+
+die() {
+  if [ -t 1 ]; then
+    printf '\033[31;1mError:\033[0m %s\n' "$1"
+  else
+    printf '[[Error: %s]]\n' "$1"
+  fi
+  exit 1
+}
+
+# lower-case, runs of non-alphanumerics to one hyphen, trimmed, max 50 chars.
+slugify() {
+  printf '%s' "$1" \
+    | tr '[:upper:]' '[:lower:]' \
+    | tr -cs 'a-z0-9' '-' \
+    | cut -c1-50 \
+    | sed -e 's/^-*//' -e 's/-*$//'
+}
+
+# The `<slug>-<KEY>` branch convention, anchored to the end: an unanchored
+# match picks the wrong key on `migrate-DRV-99-to-AIE-125`.
+branch_key() {
+  git branch --show-current 2>/dev/null | grep -oE '[A-Z]+-[0-9]+$'
+}
+
+cmd_plan() {
+  local key='' title=''
+  if printf '%s' "${1-}" | grep -qE '^[A-Z]+-[0-9]+$'; then
+    key="$1"; shift
+  else
+    key=$(branch_key) || key=''
+  fi
+  title="${1-}"
+
+  local root
+  root=$(git rev-parse --show-toplevel 2>/dev/null) \
+    || die "plan: requires being inside a git repository (plans live in <repo>/_plans/)"
+
+  # No key: task-less. A title still yields a path; without one the caller
+  # derives `_plans/<slug>.md` itself.
+  if [ -z "$key" ]; then
+    if [ -n "$title" ]; then
+      echo "_plans/$(slugify "$title").md"
+    else
+      echo "[[No plan path resolved - task-less mode; derive _plans/<slug>.md yourself]]"
+    fi
+    return 0
+  fi
+
+  # Repo-relative names, as the Python printed: glob from the root, and
+  # nullglob so a miss yields an empty array rather than the literal pattern.
+  cd "$root" || die "plan: cannot enter repo root $root"
+  shopt -s nullglob
+  local -a matches=(_plans/"${key}"-*.md)
+  shopt -u nullglob
+
+  case ${#matches[@]} in
+    1) echo "${matches[0]}"; return 0 ;;
+    0) ;;
+    *) die "multiple plan files match ${key}-*.md: ${matches[*]}" ;;
+  esac
+
+  if [ -z "$title" ]; then
+    echo "[[No existing plan for ${key} - re-run as 'tasks plan ${key} \"<issue title>\"' to get the canonical path]]"
+    return 0
+  fi
+  echo "no existing plan file for ${key} - canonical path follows:" >&2
+  echo "_plans/${key}-$(slugify "$title").md"
+}
+
+# Internal. `bin/doctor` runs this; nothing else should.
+cmd_selfcheck() {
+  local fails=0
+  check() {
+    if [ "$2" = "$3" ]; then return 0; fi
+    printf 'FAIL %s\n  want: %s\n  got:  %s\n' "$1" "$3" "$2"; fails=$((fails + 1))
+  }
+  check slug-basic   "$(slugify 'In-memory cache for X')" 'in-memory-cache-for-x'
+  check slug-punct   "$(slugify 'Fix attribution (most resolve to none)')" \
+                     'fix-attribution-most-resolve-to-none'
+  check slug-trim    "$(slugify '  --Trailing!!  ')" 'trailing'
+  check slug-len     "$(slugify 'Cost Dashboard - fix per-engineer group attribution (most engineers resolve to no group)')" \
+                     'cost-dashboard-fix-per-engineer-group-attribution'
+  check key-anchored "$(printf 'migrate-DRV-99-to-AIE-125' | grep -oE '[A-Z]+-[0-9]+$')" 'AIE-125'
+  check key-none     "$(printf 'jira-skills-pod' | grep -oE '[A-Z]+-[0-9]+$' || echo none)" 'none'
+  [ "$fails" -eq 0 ] && echo "selfcheck: ok" || echo "selfcheck: $fails failed"
+  return "$fails"
+}
+
+case "${1-}" in
+  plan)      shift; cmd_plan "$@" ;;
+  selfcheck) cmd_selfcheck ;;
+  show|set-state|comment|create|list|rest|field-id|epics|get-description|set-description|branch-name)
+    die "tasks $1 is gone - JIRA now goes through the MCP tools in _devflow-shared/docs/jira-tools.md" ;;
+  ''|-h|--help)
+    echo "usage: tasks plan [KEY] [TITLE]   resolve the plan-file path for a task"
+    [ -z "${1-}" ] && exit 1 || exit 0 ;;
+  *) die "unknown subcommand '$1' - only 'plan' exists" ;;
+esac

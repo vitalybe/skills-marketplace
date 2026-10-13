@@ -1,6 +1,7 @@
 ---
 name: _internal-step-phase-mapping
 description: Triage a dev task and return the devflow phases still to run. Invoked by /devflow:start-flow in a sub-agent - not invoked directly by the user.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *), mcp__dn-mcp-server__atlassian_jira_get_issue, mcp__dn-mcp-server__atlassian_jira_get_transitions, mcp__dn-mcp-server__atlassian_jira_transition_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_transitions, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_transition_issue
 ---
 
 # Phase Mapping
@@ -15,7 +16,7 @@ the orchestrator.
 ## General
 
 <common-instructions>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/flow-common-start.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/flow-common-start.md`
 </common-instructions>
 
 ## The phases

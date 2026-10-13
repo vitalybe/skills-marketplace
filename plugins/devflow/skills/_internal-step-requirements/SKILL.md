@@ -1,6 +1,7 @@
 ---
 name: _internal-step-requirements
 description: Gather requirements for a development task. Use when starting a new dev task, when requirements are unclear, or when the user invokes /devflow:_internal-step-requirements. Also trigger on phrases like "new task", "start a feature", "let's build X", "I want to add Y" - even without the slash command. Works with or without a task-tracker key. This is phase 1 of the dev task flow.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *), mcp__dn-mcp-server__atlassian_jira_get_issue, mcp__dn-mcp-server__atlassian_jira_get_transitions, mcp__dn-mcp-server__atlassian_jira_transition_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_transitions, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_transition_issue
 ---
 
 # Requirements Gathering
@@ -11,7 +12,7 @@ below.
 ## General
 
 <common-instructions>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/flow-common-start.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/flow-common-start.md`
 </common-instructions>
 
 ## Gather Requirements
@@ -43,7 +44,7 @@ Use the path injected in `<plan-path>` (see Environment details above).
 The plan-format reference (authoritative for the file shape) is:
 
 <plan-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/plan-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/plan-format.md`
 </plan-format>
 
 1. If the file doesn't exist yet, create it with the scaffold shown

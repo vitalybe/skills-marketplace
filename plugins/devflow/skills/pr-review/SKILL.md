@@ -1,6 +1,7 @@
 ---
 name: pr-review
 description: Reviews a GitHub pull request against its plan file, inside a worktree, using the shared review roster. Use whenever the user asks to "review PR #N", "code-review PR #N", "do a PR review on #N", "look over PR #N", or names a specific PR number with review intent. Performs the full ritual - checkout, rebase, plan lookup, review via the aggregator's reviewer roster, fix-and-commit for obvious findings, then a structured report. Always use this skill when a specific PR number is mentioned with review intent; don't do PR reviews ad-hoc.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *)
 ---
 
 # PR Review
@@ -21,7 +22,7 @@ stay with the user.
 1. **Require a worktree.** This skill runs inside an existing worktree; it does
    not create one. Refuse to run from the main repo:
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/bin/worktree-kind
+   ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/worktree-kind || /home/agent/.cursor/skills/_devflow-shared/bin/worktree-kind
    ```
    If this prints `main-repo`, **stop**. Tell the user to create and enter a
    worktree first (e.g. `git worktree add .claude/worktrees/pr-<N>` then the
@@ -51,7 +52,7 @@ stay with the user.
    or needs judgment.
 
 5. **Find the plan.** Pull the task key from the PR title/body and run
-   `${CLAUDE_PLUGIN_ROOT}/bin/tasks plan <KEY>`. If no path, check the PR
+   `${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/tasks plan <KEY> || /home/agent/.cursor/skills/_devflow-shared/bin/tasks plan <KEY>`. If no path, check the PR
    body's first line for `Plan: <blob-url>` and take the path after
    `/blob/<branch>/`; if that's absent, parse the PR body for a
    `_plans/...md` link; last resort, ask the user. Show the resolved plan
@@ -75,7 +76,7 @@ Invoke `/devflow:_internal-review-aggregator` with:
 - **Focus areas** — anything the user passed, plus diff-stat areas of interest
   (new dirs, scope-creep files, files outside the plan).
 
-It resolves the code roster (see `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`)
+It resolves the code roster (see `_devflow-shared/docs/review-roster.md`)
 and returns one triaged, source-tagged findings list (Apply / Decision needed),
 the plan↔code deltas, and any reviewer skip notes. While it runs, read the plan
 and diff stat yourself for the report tables.
@@ -103,7 +104,7 @@ to chat - this skill does not record findings in the plan file (that's the flow'
 review steps):
 
 <report-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/review-report-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/review-report-format.md`
 </report-format>
 
 - **Summary** — lead with a link to the plan: the GitHub blob URL on the PR's

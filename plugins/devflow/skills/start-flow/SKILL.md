@@ -1,6 +1,7 @@
 ---
 name: start-flow
 description: Runs the devflow workflow end to end - works out which phases the task needs, runs each phase in its own sub-agent, and relays their questions to the user. Invoke to start or resume a dev task flow.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/doctor), Bash(/*/skills/_devflow-shared/bin/mdexec *), mcp__dn-mcp-server__atlassian_jira_get_issue, mcp__dn-mcp-server__atlassian_jira_get_transitions, mcp__dn-mcp-server__atlassian_jira_transition_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_transitions, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_transition_issue
 ---
 
 # Dev Task Orchestrator
@@ -12,7 +13,7 @@ between those sub-agents and the user.
 ## Preflight
 
 <dependencies>
-!`${CLAUDE_PLUGIN_ROOT}/bin/doctor`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/doctor || /home/agent/.cursor/skills/_devflow-shared/bin/doctor`
 </dependencies>
 
 Any `MISS` → stop and tell the user what to install (use the hint shown)
@@ -21,7 +22,7 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 (those tools are never called) - proceed.
 
 <common-instructions>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/flow-common-start.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/flow-common-start.md`
 </common-instructions>
 
 ## Procedure

@@ -1,6 +1,7 @@
 ---
 name: _internal-step-design
 description: Design the UX/UI for a development task on the Paper canvas, or Claude Design. Use when requirements are gathered and the task changes screens, components, or user flows, or when the user invokes /devflow:_internal-step-design. Also trigger on phrases like "design the UI", "mock up the screens", "do the UX design". Internal - invoked by the orchestrator between the requirements and plan phases.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *), mcp__dn-mcp-server__atlassian_jira_get_issue, mcp__dn-mcp-server__atlassian_jira_get_transitions, mcp__dn-mcp-server__atlassian_jira_transition_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_transitions, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_transition_issue
 ---
 
 # UX/UI Design
@@ -11,7 +12,7 @@ below.
 ## General
 
 <common-instructions>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/flow-common-start.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/flow-common-start.md`
 </common-instructions>
 
 ## Step: Read the Requirements

@@ -1,6 +1,7 @@
 ---
 name: _internal-step-plan
 description: Create and review an implementation plan for a development task. Use when requirements are gathered and it's time to plan, or when the user invokes /devflow:_internal-step-plan. Also trigger on phrases like "plan this", "let's plan", "write the implementation plan", "how should we build this". Includes sub-agent review and user approval. This is phase 2 of the dev task flow.
+allowed-tools: Bash(/*/skills/_devflow-shared/bin/mdexec *), mcp__dn-mcp-server__atlassian_jira_get_issue, mcp__dn-mcp-server__atlassian_jira_get_transitions, mcp__dn-mcp-server__atlassian_jira_transition_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_issue, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_get_transitions, mcp__plugin_aie-devflow_dn-mcp-server__atlassian_jira_transition_issue
 ---
 
 # Plan Creation & Review
@@ -11,7 +12,7 @@ below.
 ## General
 
 <common-instructions>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/flow-common-start.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/flow-common-start.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/flow-common-start.md`
 </common-instructions>
 
 ## Step: Locate the Plan File
@@ -40,7 +41,7 @@ Use the Explore agent to understand the current state of relevant code.
 The plan-format reference (authoritative) is:
 
 <plan-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/plan-format.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/plan-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/plan-format.md`
 </plan-format>
 
 What goes inside `## Plan`, and how `## Tests` relates to it, is
@@ -51,7 +52,7 @@ When the plan file has a `## Design` section, the Main Changes **UI and UX
 Flows** subsection references it and must match it - don't restate or
 contradict the recorded design.
 
-Read `${CLAUDE_PLUGIN_ROOT}/docs/plan-guidelines.md` and draft against
+Read `_devflow-shared/docs/plan-guidelines.md` and draft against
 that rubric - it's what the plan review judges the draft by.
 
 Once the initial draft is written, save and commit the plan file.
@@ -71,7 +72,7 @@ Invoke `/devflow:_internal-review-aggregator` with:
 - **Context** - task requirements/goals and relevant context (parent task,
   referenced docs) so the reviewers can judge completeness.
 
-It resolves the plan roster (see `${CLAUDE_PLUGIN_ROOT}/docs/review-roster.md`),
+It resolves the plan roster (see `_devflow-shared/docs/review-roster.md`),
 runs the lanes in parallel, and returns one triaged, source-tagged findings list
 (Apply / Decision needed) plus any reviewer skip notes.
 
@@ -89,7 +90,7 @@ specifies, since the plan is where the user reads them. Then commit the plan
 file.
 
 <report-format>
-!`${CLAUDE_PLUGIN_ROOT}/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/docs/review-report-format.md`
+!`${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/bin/mdexec ${CLAUDE_PLUGIN_ROOT}/skills/_devflow-shared/docs/review-report-format.md || /home/agent/.cursor/skills/_devflow-shared/bin/mdexec /home/agent/.cursor/skills/_devflow-shared/docs/review-report-format.md`
 </report-format>
 
 ## Step: User Review

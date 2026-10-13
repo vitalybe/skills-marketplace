@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Print the target project's project-config.toml, or the caller's fallback note
+# when there isn't one.
+#
+# Usage: project-config "[[note to print when the file is missing]]"
+#
+# Exists because the skills inject this as their own `!`...`` block, where the
+# harness statically verifies the command string: the `cat "$(git rev-parse
+# --show-toplevel)/..." || echo ...` this replaces is a compound command, which
+# cannot be verified in a worktree-isolated session and gets the whole skill
+# refused. Keep the call sites a single plain invocation.
+set -uo pipefail
+
+fallback="${1:-[[No project-config.toml found in the project root]]}"
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || root=''
+if [ -n "$root" ] && [ -r "$root/project-config.toml" ]; then
+  cat "$root/project-config.toml"
+else
+  printf '%s\n' "$fallback"
+fi

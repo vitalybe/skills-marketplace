@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const args = process.argv.slice(2);
+
+let file = null;
+let fallback = null;
+let showHelp = false;
+
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '-h' || a === '--help') {
+    showHelp = true;
+  } else if (a === '--fallback') {
+    fallback = args[++i];
+  } else if (!a.startsWith('-') && file === null) {
+    file = a;
+  }
+}
+
+if (showHelp || !file) {
+  console.error('Usage: mdexec <file.md> [--fallback <file.md>]');
+  console.error('');
+  console.error('Replaces !`cmd` in markdown with command output.');
+  console.error('');
+  console.error('Resolution:');
+  console.error('  Paths with a ".claude" segment: try CWD/<path>, then $HOME/<path>.');
+  console.error('  Other relative paths: resolve against CWD.');
+  console.error('  Absolute paths: used as-is.');
+  console.error('  If the primary file is missing and --fallback is given, the fallback');
+  console.error('  is resolved with the same rules.');
+  process.exit(1);
+}
+
+function resolveFile(f) {
+  if (path.isAbsolute(f)) {
+    return fs.existsSync(f) ? f : null;
+  }
+  const segments = f.split('/');
+  if (segments.includes('.claude')) {
+    const cwdPath = path.resolve(process.cwd(), f);
+    if (fs.existsSync(cwdPath)) return cwdPath;
+    const homePath = path.resolve(os.homedir(), f);
+    if (fs.existsSync(homePath)) return homePath;
+    return null;
+  }
+  const p = path.resolve(process.cwd(), f);
+  return fs.existsSync(p) ? p : null;
+}
+
+let resolved = resolveFile(file);
+if (!resolved && fallback) {
+  resolved = resolveFile(fallback);
+}
+
+// Errors go to STDOUT, in the same two shapes `bin/tasks` uses: colored for a
+// human at a terminal, and the `[[Error: <msg>]]` marker form whenever the
+// output is captured. Our callers are `!`cmd`` blocks whose whole output IS the
+// text of a skill, so an error written to stderr reaches nobody - the reference
+// just silently produces nothing, which is the failure mode this shape exists
+// to remove. In marker form the exit code is deliberately 0: `bin/doctor`'s
+// header records that a `!`cmd`` block which errors gets the whole skill
+// refused, and none of mdexec's 18 call sites wraps it in a `||` guard that
+// would absorb a non-zero status. So the marker text is the signal, exactly as
+// doctor's MISS lines are. A human at a TTY has no skill body to protect and is
+// better served by a real exit status.
+function fail(msg) {
+  if (process.stdout.isTTY) {
+    console.log(`\x1b[31;1mError:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+  console.log(`[[Error: ${msg}]]`);
+  process.exit(0);
+}
+
+if (!resolved) {
+  const suffix = fallback ? ` (fallback: ${fallback})` : '';
+  fail(`mdexec: file not found: ${file}${suffix}`);
+}
+
+const content = fs.readFileSync(resolved, 'utf-8');
+const cwd = process.cwd();
+
+// Where the bundle is installed, worked out from our own location: mdexec lives
+// at <plugin-root>/skills/_devflow-shared/bin/mdexec, so three levels up is the
+// root - the plugin directory under Claude Code, ~/.cursor in a
+// marketplace-provisioned agent pod. Computed per run on whichever machine is
+// running, so nothing machine-specific is ever committed. An explicit env wins.
+const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '../../..');
+const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot };
+
+const result = content.replace(/!`([^`\n]+)`/g, (_, cmd) => {
+  try {
+    return execSync(cmd, { encoding: 'utf-8', cwd, env: childEnv, stdio: ['pipe', 'pipe', 'inherit'] }).replace(/\n$/, '');
+  } catch (e) {
+    // Same reasoning as fail(): substituting '' would leave a blank where an
+    // instruction should be. The marker keeps the failure in the rendered text.
+    const code = e.status || 1;
+    return `[[Error: mdexec: command failed (exit ${code}): ${cmd}]]`;
+  }
+});
+
+// ${CLAUDE_PLUGIN_ROOT} resolved in the rendered TEXT, not just for the commands
+// above. The harness substitutes that token in a skill's own file, but not in
+// what a command prints - and this output is pasted into the skill body after
+// that pass has run. Left alone, every path in an injected instruction reaches
+// the agent unresolved, and running one resolves the unset variable to '' and
+// looks for /skills/... at the filesystem root.
+//
+// split/join rather than replace(): a replacement string is scanned for $&, $1
+// and friends, and a plugin root is a path we do not control.
+const rendered = result.split('${CLAUDE_PLUGIN_ROOT}').join(pluginRoot);
+
+process.stdout.write(rendered);

@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Dependency doctor for the devflow plugin.
+# Reports which runtime dependencies are present and how to install the rest.
+# Output is plain stdout so it can be injected into a skill via mdexec.
+set -uo pipefail
+
+# Both call sites inject this as a skill's own `!`...`` block, where the harness
+# statically verifies the command string. A compound command there (`2>&1 ||
+# true`) cannot be verified in a worktree-isolated session, and the whole skill
+# is then refused - so this script folds its own stderr and always exits 0. The
+# MISS lines in the output are the signal; the exit code carries nothing.
+exec 2>&1
+
+missing=0
+say() { printf '%s\n' "$*"; }
+check() {
+  # check <command> <install-hint>
+  if command -v "$1" >/dev/null 2>&1; then
+    say "  ok    $1"
+  else
+    say "  MISS  $1 - $2"
+    missing=1
+  fi
+}
+
+say "devflow dependency check:"
+check node "install Node.js - runs the 'mdexec' doc injector"
+check git  "install git"
+
+# `tasks` is bash now and resolves plan paths only, but a broken slugify would
+# quietly hand the flow the wrong plan filename, so assert it rather than
+# assume it.
+if out=$("$(dirname "$0")/tasks" selfcheck 2>&1); then
+  say "  ok    tasks (plan-path resolver)"
+else
+  say "  MISS  tasks selfcheck failed: $out"
+  missing=1
+fi
+
+# JIRA goes through dn-mcp-server's MCP tools (docs/jira-tools.md). Until it is
+# authenticated it exposes no JIRA tools and the flow silently runs task-less.
+# Claude Code only (CLAUDECODE=1): Cursor has its own MCP config. User-scope
+# definition first: it wins precedence over the plugin's.
+[ -n "${CLAUDECODE:-}" ] && for name in dn-mcp-server plugin:aie-devflow:dn-mcp-server; do
+  status=$(claude mcp get "$name" 2>/dev/null | grep 'Status:') || continue
+  case "$status" in
+    *Connected*) say "  ok    jira (dn-mcp-server)" ;;
+    *) say "  MISS  jira - dn-mcp-server:${status#*Status:} - run /mcp and authenticate dn-mcp-server"
+       missing=1 ;;
+  esac
+  break
+done
+
+say ""
+say "JIRA: supplied by the session's MCP connection, not by this bundle."
+say "      Checked above in Claude Code; in Cursor, check its MCP settings."
+say "      With no JIRA tool the flow runs task-less."
+
+# Review roster (optional). These gate individual reviewers in the review
+# roster - a missing one is skipped, never fatal, so they do NOT touch $missing.
+say ""
+say "review roster (optional - a missing tool just skips that reviewer):"
+
+if command -v npx >/dev/null 2>&1; then
+  say "  ok    fallow (via npx) - runs on TS/JS diffs only"
+else
+  say "  --    fallow needs npx (Node) - 'fallow' reviewer skipped"
+fi
+
+if [ -n "$(find "${HOME}/.claude/plugins" -maxdepth 5 -iname '*ponytail*' 2>/dev/null)" ]; then
+  say "  ok    ponytail plugin"
+else
+  say "  --    ponytail plugin not detected - 'ponytail' reviewer skipped (install: /plugin install ponytail@ponytail)"
+fi
+
+if command -v codex >/dev/null 2>&1; then
+  say "  ok    codex CLI (run 'codex login' to authenticate)"
+else
+  say "  --    codex CLI not found - 'codex' reviewer skipped (install: pnpm add -g @openai/codex, then codex login)"
+fi
+
+say ""
+if [ "$missing" -eq 0 ]; then
+  say "All dependencies satisfied."
+else
+  say "Some dependencies are missing - see hints above. The flow needs these to run."
+fi
