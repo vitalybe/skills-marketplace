@@ -135,23 +135,21 @@ export const registerStatusBand = (on: Parameters<Register>[0]) => {
     const { on: filled, off: empty } = bar(b.percent)
     const sep = <Text dimColor>  │  </Text>
 
-    // Tooltips: one row, each tip hidden until its trigger's hover scope lights.
-    const tip = (scope: string, text: string) => (
-      <Box key={`tip-${scope}`} display="none" hover={{ scope, display: 'flex' }}>
+    // Tooltips float over the border row above the band (absolute: no layout space).
+    const tip = (text: string) => (
+      <Box position="absolute" top={-1} left={0} display="none" hover={{ display: 'flex' }}>
         <Text backgroundColor="#444444" color="#eeeeee"> {text} </Text>
       </Box>
     )
 
     return (
       <Box flexDirection="column">
-        <Box key="tips">
-          {tip('mode', `${b.isWorktree ? 'worktree' : 'root'}: ${b.path}  (click to copy)`)}
-          {tip('session', `session ${b.sessionId}  (click to copy)`)}
-        </Box>
+        <Text color="#444444">{'- '.repeat(Math.ceil(e.props.bodyColumns / 2)).slice(0, e.props.bodyColumns)}</Text>
         <Box key="row">
           <Text backgroundColor="#585858" color="#ffffff" bold> {b.repo} </Text>
           <Text> </Text>
-          <Box key="mode" hover={{ scope: 'mode' }}>
+          <Box key="mode">
+            {tip(`${b.isWorktree ? 'worktree' : 'root'}: ${b.path}  (click to copy)`)}
             <Button
               key="mode-btn"
               plain
@@ -175,7 +173,8 @@ export const registerStatusBand = (on: Parameters<Register>[0]) => {
             {fmt(b.tokens)}/{fmt(b.window)} <Text dimColor>{b.percent}%</Text>
           </Text>
           {sep}
-          <Box key="session" hover={{ scope: 'session' }}>
+          <Box key="session">
+            {tip(`session ${b.sessionId}  (click to copy)`)}
             <Button key="session-btn" plain onPress={copy(b.sessionId, 'session ID')}>
               <Text backgroundColor="#444444" color="#bcbcbc"> Session ID ⧉ </Text>
             </Button>
