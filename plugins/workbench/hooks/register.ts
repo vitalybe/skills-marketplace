@@ -1,10 +1,14 @@
 import type { Register } from 'claude-code'
 
+import { registerStatusBand } from './status-band'
+
 const DIR = '/tmp/claude-rename'
 
 // Blocks on a named pipe per session: no polling, a write renames at once.
 // External use: echo "new title" > /tmp/claude-rename/<session-id>
 export const register: Register = on => {
+  registerStatusBand(on)
+
   on('session.start', async ($, e, next) => {
     const fifo = `${DIR}/${await $.session.id()}`
     const reader = $.process.spawn({

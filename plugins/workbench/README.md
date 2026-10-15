@@ -26,7 +26,11 @@ Invoked as `/workbench:<name>`.
 
 ## Hooks
 
-A `hooks/` module (loaded by the engine, not a skill) renames the running session from outside. `echo "new title" > /tmp/claude-rename/<session-id>` runs `/rename` in that session. Wrap the write in `timeout 2` in scripts: the pipe blocks when no session is reading it.
+The `hooks/` module is loaded by the engine, not a skill. It does two things.
+
+**Status band.** A band above the prompt (`hooks/status-band.tsx`) shows the repo, `➤ root` or `𖣂 worktree`, the branch, git status (clean, changed files, ahead/behind), the model, a context-size bar with the token count, and a `Session ID ⧉` badge. Hovering the root/worktree label or the session badge shows a tooltip with the path or full ID; clicking copies it. Git status refreshes after edits and shell commands, after each turn, and every 15 seconds. The band hides while a survey is open. Remove any `statusLine` command from settings to avoid showing the info twice.
+
+**Session rename.** The same module renames the running session from outside. `echo "new title" > /tmp/claude-rename/<session-id>` runs `/rename` in that session. Wrap the write in `timeout 2` in scripts: the pipe blocks when no session is reading it.
 
 ## Prerequisites
 
