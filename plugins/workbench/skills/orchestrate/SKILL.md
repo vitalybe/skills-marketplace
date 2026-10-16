@@ -12,3 +12,7 @@ Pick the model for each subagent, unless the user says otherwise:
 - `haiku` - simple, mechanical work.
 - `sonnet` - typical coding and research.
 - `opus` - hard reasoning, design, tricky debugging.
+
+Strive to run actions in parallel whenever there are multiple tasks: launch all independent subagents in a single message rather than one after another. Only serialize work that truly depends on an earlier result.
+
+When parallel subagents may conflict (e.g. editing the same files), have each work in its own git worktree (`isolation: "worktree"`). Each subagent must merge its own work back before reporting done, resolving any conflicts itself. Do not merge for them.
