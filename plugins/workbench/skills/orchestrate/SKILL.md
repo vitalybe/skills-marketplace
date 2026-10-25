@@ -19,4 +19,11 @@ Subagents only get the instructions you pass them. If a subagent may spawn its o
 
 Strive to run actions in parallel whenever there are multiple tasks: launch all independent subagents in a single message rather than one after another. Only serialize work that truly depends on an earlier result.
 
-When parallel subagents may conflict (e.g. editing the same files), have each work in its own git worktree (`isolation: "worktree"`). Each subagent must merge its own work back before reporting done, resolving any conflicts itself. Do not merge for them.
+When parallel subagents may conflict (e.g. editing the same files), have each work in its own git worktree (`isolation: "worktree"`).
+
+Landing rule - include it in every worker brief:
+
+- Workers never merge by hand. Each worker works in its own git worktree, commits, and as its last step lands the work by running the repo's land script if one exists (for example `scripts/land --message-file <file>`, where the message file is written with the Write tool and ends with the required Co-Authored-By line). The script merges the default branch in first, runs the fast tests, merges --no-ff, and removes the worktree and branch only after success. It never pushes and stops on conflicts or test failures.
+- If the repo has no land script, the worker merges its own branch with --no-ff itself, resolving conflicts, and removes the worktree.
+- If a worker's sandbox blocks landing (git commands against the main checkout are refused), it commits on its branch, does not work around the block, and reports the branch name. The orchestrator then starts one small landing subagent (`sonnet`) whose only job is to run the same land script (or the --no-ff merge) for that branch, run the tests, clean up, and report. The orchestrator itself does not run merges or edit code. If the landing agent is also blocked, report the branch and the exact commands to the user.
+- After a hand-back, verify the result before reporting: `git log` shows the merge commit, `git worktree list` has no leftover worktree for it, and no leftover processes remain.
