@@ -53,25 +53,33 @@ routing via `Index.md`, `meta/people.md` / `meta/Tags.md`, YAML
 frontmatter validity, session logging, attachments, and keeping
 `Index.md` in sync. Follow it; don't restate its rules here.
 
-## Writing: always through ingest
+## Writing: route directly by the vault's rules
 
-Never write vault content with your own logic, including a new task.
-Writes go through the same path as the vault's `ingest` skill, so the
-router (`p-route`) decides the destination - e.g. a DriveNets work task
-on Vitaly goes to `# Tasks` in `areas/work/Work Board.md`, which a direct
-write would bypass.
+Every write, including a new task, is placed by following the vault's
+own routing docs in this session, not by ad-hoc logic. Read them fresh
+from `$VAULT`:
 
-1. Write the text verbatim to `/tmp/claude-<epoch>.txt` with the Write tool, then
-   `~/homebot/cron/manual-capture --via claude-code < /tmp/claude-<epoch>.txt`
-   (prints the `raw/manual/data/<YYYY-MM>/<ts>.txt` path; exit 1 = empty, ask the user).
-2. `~/homebot/cron/manual-import <path>`.
-3. Follow the vault's `p-route` skill (`meta/skills/p-route/SKILL.md`) for source
-   `manual` in this session; ask the user where the unattended run would skip.
-4. Reply with what was filed where, citing the capture path.
+- `CLAUDE.md` and `meta/docs/routing.md` - primary routes, host-page
+  choice via `Index.md`, `meta/people.md`, `meta/Tags.md`.
+- `meta/importers/FAN-OUT.md` - the six steps: host page, record, task
+  lines (step 3), people, validate and log. Skip step 5 (archive and
+  ledger).
+- `meta/Task Format.md` and `meta/skills/p-route/SKILL.md` - task line
+  format and the shared routing rules (never create a wiki page without
+  asking; unplaceable content goes to an `areas/unrouted/` row).
 
-`~/homebot` exists only on the home Mac. If the capture scripts are
-missing (e.g. the work Mac), say so and ask the user; do not hand-write
-into the vault. Reads and lookups stay direct.
+A task never bypasses the Work Board rule: a DriveNets work task on
+Vitaly goes to the `# Tasks` section of `areas/work/Work Board.md`,
+under a `###` project heading, with the hard-match dedup rules of
+FAN-OUT step 3.
+
+Nothing is saved as a capture and nothing is archived, so there is no
+router ledger line. When the run changed vault content, add one
+activity-log line with `meta/scripts/vault-log --title wiki --summary
+"<text>" --to '[[Page]]'`, and run
+`meta/scripts/validate-obsidian-frontmatter <edited pages>` (0 errors).
+Created or deleted wiki pages also update `Index.md`. Reply with what
+was filed where. Reads and lookups stay direct.
 
 ## Personal tasks
 
@@ -100,9 +108,14 @@ rg -n -B5 -A5 'water filter' "wiki/personal/Home Tasks.md"                      
 **Line format:** `- [ ] Title due:YYYY-MM-DD !` - `due:` only for a real
 external deadline, `!` rare, sub-steps as nested checkboxes.
 
-**Create:** dedup first (`rg -n -i '^\s*- \[[ x]\] .*<words>' wiki/ shared/`); if
-something plausible exists, show it to the user instead of adding. Then
-ingest the task text as above; the router picks the note and writes the line.
+**Create:** dedup first (`rg -n -i '^\s*- \[[ x]\] .*<words>' wiki/ shared/
+"areas/work/Work Board.md"`); if something plausible exists, show it to
+the user instead of adding. Then place it per FAN-OUT step 3 and
+`meta/Task Format.md`: a DriveNets work task on Vitaly goes to
+`areas/work/Work Board.md` `# Tasks` under the matching `###` heading (a
+new heading only if none fits), applying the Work Board hard-match
+dedup; a personal task goes under `## Tasks` on the note it concerns,
+else [[Home Tasks]]. Then log and validate as above.
 
 **Close:** tick in place (`- [x]`), same page only; follow the vault
 `CLAUDE.md` rules for the edit.
