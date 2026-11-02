@@ -27,7 +27,7 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 
 ## Procedure
 
-1. **Map the phases.** Spawn `/devflow:_internal-step-phase-mapping` in a
+1. **Map the phases.** Spawn `aie-devflow:_internal-step-phase-mapping` in a
    sub-agent (model: opus), passing the user's request verbatim. It returns
    the flow, a `why` line, and one `phase:` line per phase still to run -
    name, skill, model. The mapping owns all of that: use its phases, skills
@@ -60,7 +60,7 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 Contains ONLY:
 
 1. One line invoking the skill via the Skill tool, e.g. "Invoke the skill
-   `devflow:_internal-step-requirements` and follow it."
+   `aie-devflow:_internal-step-requirements` and follow it."
 2. The user's request, verbatim.
 3. The phase-mapping's `why` line for this phase.
 4. Session-specific facts the skill can't re-derive itself, if any (e.g.

@@ -23,7 +23,7 @@ top-level turn, and a sub-agent's never do.
 - **`no`**: nobody is reading the markers and nothing can clear a gate, so
   emitting them would stop the flow at a gate that never lifts. Say so once -
   *not an orchestrated session: running the plain flow, no markers, no
-  sign-off gate* - then invoke the skill `devflow:start-flow`, follow it, and
+  sign-off gate* - then invoke the skill `aie-devflow:start-flow`, follow it, and
   ignore the rest of this file.
 - **`detection-unavailable`**: `aie-orchestrator-skills` is not installed, so
   there is nothing to emit markers to. Say *orchestrator detection unavailable
@@ -31,7 +31,7 @@ top-level turn, and a sub-agent's never do.
 
 ## Step 2: Run the flow with markers
 
-Invoke the skill `devflow:start-flow` and follow it, passing the user's request
+Invoke the skill `aie-devflow:start-flow` and follow it, passing the user's request
 verbatim. Its procedure is unchanged - phase mapping, one sub-agent per phase,
 gate relaying. These rules apply while you follow it:
 

@@ -13,7 +13,7 @@ changes the session's directory.
 
 ## Step 1: Get onto a worktree branch
 
-Invoke the skill `devflow:use-worktree-branch` and follow it, passing the
+Invoke the skill `aie-devflow:use-worktree-branch` and follow it, passing the
 user's request verbatim so it can name the branch from the task.
 
 Stop there only if it stops: an unresolvable default branch, or a stash-pop
@@ -25,6 +25,6 @@ start implementing the work yourself.
 
 ## Step 2: Run the flow
 
-In the worktree, invoke the skill `devflow:start-flow` and follow it, passing
+In the worktree, invoke the skill `aie-devflow:start-flow` and follow it, passing
 the user's request verbatim. Everything from there - phase mapping, sub-agents,
 gates - is that skill's job.
