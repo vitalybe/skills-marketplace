@@ -2,7 +2,7 @@
 # Purpose: land a finished linked-worktree branch into a target branch checked out in the main checkout (merge target in, test, --no-ff merge, clean up). Never pushes.
 # Usage: scripts/land [--into <branch>] --message-file <file> [--no-test] [worktree-path-or-branch]
 # --into defaults to the branch currently checked out in the main checkout (the orchestrator's branch).
-# Env: LAND_TEST_CMD sets the test command (run with bash -c in the worktree root). Default: cargo test --lib if app/Cargo.toml exists, else no tests.
+# Env: LAND_TEST_CMD sets the test command (run with bash -c in the worktree root). Unset: no tests run.
 set -euo pipefail
 
 say() { echo "land: $*"; }
@@ -73,12 +73,11 @@ if [ "$notest" = 1 ]; then
 else
   run_tests() {
     if [ -n "${LAND_TEST_CMD:-}" ]; then (cd "$wt" && bash -c "$LAND_TEST_CMD")
-    elif [ -f "$wt/app/Cargo.toml" ]; then (cd "$wt/app" && CARGO_BUILD_JOBS=2 cargo test --lib)
-    else say "no LAND_TEST_CMD and no app/Cargo.toml, nothing to run"; fi
+    else say "LAND_TEST_CMD not set, no tests to run"; fi
   }
   say "running tests"
   if ! run_tests; then
-    say "tests failed, retrying once (known flaky: improver::gating_on_by_default_key_missing_and_failures)"
+    say "tests failed, retrying once (in case of a flaky test)"
     run_tests || die "tests failed after one retry; main untouched"
     say "tests passed on the retry"
   fi
