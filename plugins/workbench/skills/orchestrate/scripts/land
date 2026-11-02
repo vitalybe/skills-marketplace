@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Purpose: land a finished linked-worktree branch into a target branch checked out in the main checkout (merge target in, test, --no-ff merge, clean up). Never pushes.
+# Usage: scripts/land [--into <branch>] --message-file <file> [--no-test] [worktree-path-or-branch]
+# --into defaults to the branch currently checked out in the main checkout (the orchestrator's branch).
+# Env: LAND_TEST_CMD sets the test command (run with bash -c in the worktree root). Default: cargo test --lib if app/Cargo.toml exists, else no tests.
+set -euo pipefail
+
+say() { echo "land: $*"; }
+die() { echo "land: ERROR: $*" >&2; exit 1; }
+
+msgfile="" notest=0 target="" into=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --into) [ $# -ge 2 ] || die "--into needs a branch"; into="$2"; shift 2 ;;
+    --message-file) [ $# -ge 2 ] || die "--message-file needs a path"; msgfile="$2"; shift 2 ;;
+    --no-test) notest=1; shift ;;
+    -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+    -*) die "unknown option $1" ;;
+    *) [ -z "$target" ] || die "more than one target given"; target="$1"; shift ;;
+  esac
+done
+
+# Message file: required, must end with the Co-Authored-By line.
+[ -n "$msgfile" ] || die "--message-file <path> is required"
+[ -f "$msgfile" ] || die "message file not found: $msgfile"
+msgfile="$(cd "$(dirname "$msgfile")" && pwd)/$(basename "$msgfile")"
+last="$(grep -v '^\s*$' "$msgfile" | tail -n 1 || true)"
+case "$last" in
+  "Co-Authored-By: "?*) ;;
+  *) die "message file must end with a 'Co-Authored-By: ...' line" ;;
+esac
+
+# Locate the worktree (path, branch name, or current directory).
+if [ -z "$target" ]; then
+  wt="$(git rev-parse --show-toplevel)" || die "not inside a git work tree"
+elif [ -d "$target" ]; then
+  wt="$(git -C "$target" rev-parse --show-toplevel)" || die "not a git work tree: $target"
+else
+  wt="$(git worktree list --porcelain | awk -v b="refs/heads/$target" '/^worktree /{p=substr($0,10)} $0=="branch " b{print p}')"
+  [ -n "$wt" ] || die "no worktree or branch named $target"
+fi
+common="$(git -C "$wt" rev-parse --path-format=absolute --git-common-dir)"
+main="$(git -C "$common" rev-parse --show-toplevel 2>/dev/null || dirname "$common")"
+[ "$(cd "$wt" && pwd -P)" != "$(cd "$main" && pwd -P)" ] || die "$wt is the main checkout, not a linked worktree"
+
+branch="$(git -C "$wt" symbolic-ref --short -q HEAD)" || die "detached HEAD in $wt"
+
+# Target: --into, else the branch checked out in the main checkout.
+current="$(git -C "$main" symbolic-ref --short -q HEAD || true)"
+default="${into:-$current}"
+[ -n "$default" ] || die "main checkout is on a detached HEAD; pass --into <branch>"
+git -C "$main" show-ref --verify --quiet "refs/heads/$default" || die "target branch $default does not exist"
+[ "$branch" != "$default" ] || die "refusing to land the target branch itself ($default)"
+
+say "worktree $wt, branch $branch -> $default in $main"
+
+# Preconditions.
+[ "$current" = "$default" ] || die "main checkout is on '$current', not on target $default"
+[ -z "$(git -C "$wt" status --porcelain --untracked-files=no)" ] || die "worktree has uncommitted changes"
+[ -z "$(git -C "$main" status --porcelain --untracked-files=no)" ] || die "main checkout has uncommitted changes"
+
+# 1. Merge default into the branch inside the worktree.
+say "merging $default into $branch in the worktree"
+if ! git -C "$wt" merge --no-edit "$default"; then
+  echo "land: CONFLICT merging $default into $branch. Conflicting files:" >&2
+  git -C "$wt" diff --name-only --diff-filter=U >&2
+  die "resolve in $wt, commit, and run again (main untouched)"
+fi
+
+# 2. Tests.
+if [ "$notest" = 1 ]; then
+  say "tests skipped (--no-test)"
+else
+  run_tests() {
+    if [ -n "${LAND_TEST_CMD:-}" ]; then (cd "$wt" && bash -c "$LAND_TEST_CMD")
+    elif [ -f "$wt/app/Cargo.toml" ]; then (cd "$wt/app" && CARGO_BUILD_JOBS=2 cargo test --lib)
+    else say "no LAND_TEST_CMD and no app/Cargo.toml, nothing to run"; fi
+  }
+  say "running tests"
+  if ! run_tests; then
+    say "tests failed, retrying once (known flaky: improver::gating_on_by_default_key_missing_and_failures)"
+    run_tests || die "tests failed after one retry; main untouched"
+    say "tests passed on the retry"
+  fi
+fi
+
+# 3. Merge into main.
+say "merging $branch into $default (--no-ff)"
+if ! git -C "$main" merge --no-ff -F "$msgfile" "$branch"; then
+  git -C "$main" merge --abort || true
+  die "merge into $default failed and was aborted; nothing was removed"
+fi
+hash="$(git -C "$main" rev-parse HEAD)"
+
+# 4. Cleanup, only after the merge succeeded.
+cd "$main"
+# A worktree locked by the agent harness is left alone (never unlocked or forced); the branch stays with it.
+locked="$(git worktree list --porcelain | awk -v w="$wt" '/^worktree /{p=substr($0,10)} /^locked/ && p==w{print "y"}')"
+if [ -n "$locked" ]; then
+  say "merged $hash into $default; worktree $wt is locked by the harness, remove it after the agent exits: git worktree unlock $wt && git worktree remove $wt && git branch -d $branch"
+  exit 0
+fi
+say "removing worktree and branch"
+git worktree remove "$wt" || die "merged as $hash but could not remove $wt"
+git branch -d "$branch" || die "merged as $hash but could not delete $branch"
+
+say "merge commit $hash"
+git worktree list
