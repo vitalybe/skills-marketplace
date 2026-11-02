@@ -53,33 +53,14 @@ routing via `Index.md`, `meta/people.md` / `meta/Tags.md`, YAML
 frontmatter validity, session logging, attachments, and keeping
 `Index.md` in sync. Follow it; don't restate its rules here.
 
-## Writing: route directly by the vault's rules
+## Writing: follow the vault's docs
 
-Every write, including a new task, is placed by following the vault's
-own routing docs in this session, not by ad-hoc logic. Read them fresh
-from `$VAULT`:
-
-- `CLAUDE.md` and `meta/docs/routing.md` - primary routes, host-page
-  choice via `Index.md`, `meta/people.md`, `meta/Tags.md`.
-- `meta/importers/FAN-OUT.md` - the six steps: host page, record, task
-  lines (step 3), people, validate and log. Skip step 5 (archive and
-  ledger).
-- `meta/Task Format.md` and `meta/skills/p-route/SKILL.md` - task line
-  format and the shared routing rules (never create a wiki page without
-  asking; unplaceable content goes to an `areas/unrouted/` row).
-
-A task never bypasses the Work Board rule: a DriveNets work task on
-Vitaly goes to the `# Tasks` section of `areas/work/Work Board.md`,
-under a `###` project heading, with the hard-match dedup rules of
-FAN-OUT step 3.
-
-Nothing is saved as a capture and nothing is archived, so there is no
-router ledger line. When the run changed vault content, add one
-activity-log line with `meta/scripts/vault-log --title wiki --summary
-"<text>" --to '[[Page]]'`, and run
-`meta/scripts/validate-obsidian-frontmatter <edited pages>` (0 errors).
-Created or deleted wiki pages also update `Index.md`. Reply with what
-was filed where. Reads and lookups stay direct.
+A write is placed by following the vault docs, read fresh from `$VAULT`:
+`CLAUDE.md`, then `meta/docs/routing.md`, `meta/importers/FAN-OUT.md` and
+`meta/Task Format.md`; logging and validation per `meta/docs/writing.md`.
+Apply them directly in this session. Nothing is captured or archived, so
+there is no ledger line. Reply with what was filed where. Reads and
+lookups stay direct.
 
 ## Personal tasks
 
@@ -105,17 +86,8 @@ rg -n -B5 -A5 'water filter' "wiki/personal/Home Tasks.md"                      
 - "What should I work on?" is ambiguous with JIRA: grep the vault and
   list open JIRA issues (`/workbench:task-jira`), let the user pick.
 
-**Line format:** `- [ ] Title due:YYYY-MM-DD !` - `due:` only for a real
-external deadline, `!` rare, sub-steps as nested checkboxes.
-
-**Create:** dedup first (`rg -n -i '^\s*- \[[ x]\] .*<words>' wiki/ shared/
-"areas/work/Work Board.md"`); if something plausible exists, show it to
-the user instead of adding. Then place it per FAN-OUT step 3 and
-`meta/Task Format.md`: a DriveNets work task on Vitaly goes to
-`areas/work/Work Board.md` `# Tasks` under the matching `###` heading (a
-new heading only if none fits), applying the Work Board hard-match
-dedup; a personal task goes under `## Tasks` on the note it concerns,
-else [[Home Tasks]]. Then log and validate as above.
+**Create:** place it per `meta/importers/FAN-OUT.md` step 3 and
+`meta/Task Format.md`.
 
 **Close:** tick in place (`- [x]`), same page only; follow the vault
 `CLAUDE.md` rules for the edit.
