@@ -76,7 +76,7 @@ Suggested skeleton:
 - [ ] ...
 ```
 
-If the vault/wiki is involved, the `/workbench:wiki` skill covers where such pages live; `/workbench:task-obsidian` covers personal task files.
+If the vault/wiki is involved, the `/workbench:wiki` skill covers where such pages live; `/workbench:wiki` covers personal tasks.
 
 ## One-shot waits
 
