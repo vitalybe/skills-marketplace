@@ -10,7 +10,7 @@ description: >-
   my and X's calendar", or gives a subject + people + rough time. Handles
   optional people, date, time, and duration (default 30 min). Resolves
   names via the Outlook people API and disambiguates using the vault people
-  registry. Distinct from /workbench:task-obsidian (personal to-dos) and
+  registry. Distinct from /workbench:wiki (personal to-dos) and
   /workbench:task-jira (work tickets).
 ---
 
