@@ -16,7 +16,7 @@ top-level turn, and a sub-agent's never do.
 ## Step 1: Confirm the environment
 
 <orchestrator-run>
-!`${CLAUDE_PLUGIN_ROOT}/../aie-orchestrator-skills/skills/orchestrator-phase/bin/orchestrator-env 2>/dev/null || /home/agent/.cursor/skills/orchestrator-phase/bin/orchestrator-env 2>/dev/null || echo "detection-unavailable"`
+!`${CLAUDE_PLUGIN_ROOT}/../aie-orchestrator-workflow-skills/skills/orchestrator-phase/bin/orchestrator-env 2>/dev/null || /home/agent/.cursor/skills/orchestrator-phase/bin/orchestrator-env 2>/dev/null || echo "detection-unavailable"`
 </orchestrator-run>
 
 - **`yes`**: an orchestrated run. Continue with step 2.
@@ -25,7 +25,7 @@ top-level turn, and a sub-agent's never do.
   *not an orchestrated session: running the plain flow, no markers, no
   sign-off gate* - then invoke the skill `aie-devflow:start-flow`, follow it, and
   ignore the rest of this file.
-- **`detection-unavailable`**: `aie-orchestrator-skills` is not installed, so
+- **`detection-unavailable`**: `aie-orchestrator-workflow-skills` is not installed, so
   there is nothing to emit markers to. Say *orchestrator detection unavailable
   - running without markers*, then do exactly what **`no`** does.
 
@@ -36,7 +36,7 @@ verbatim. Its procedure is unchanged - phase mapping, one sub-agent per phase,
 gate relaying. These rules apply while you follow it:
 
 1. **Before each phase's sub-agent starts**, invoke
-   `aie-orchestrator-skills:orchestrator-phase` with that phase's name
+   `aie-orchestrator-workflow-skills:orchestrator-phase` with that phase's name
    title-cased (`Requirements`, `Design`, `Plan`, `Code`, `Close`) and emit its
    marker.
 2. **When the `code` phase reports complete and `close` is still pending**,
@@ -46,7 +46,7 @@ gate relaying. These rules apply while you follow it:
 
 ## Step 3: The sign-off gate
 
-Block the merge on a human. Invoke `aie-orchestrator-skills:orchestrator-gate`
+Block the merge on a human. Invoke `aie-orchestrator-workflow-skills:orchestrator-gate`
 with gate name `devflow-close` and reason `devflow sign-off before close`,
 emit its marker, and **end the turn** - no close sub-agent, no further edits,
 nothing after the marker implying more work this turn.
@@ -60,7 +60,7 @@ The fast path has no `close` phase and never reaches this step.
 ## Step 4: Close the run
 
 Once the core flow has reported what the phases produced - plan path, commits,
-PR url - invoke `aie-orchestrator-skills:orchestrator-flow-done` and emit its
+PR url - invoke `aie-orchestrator-workflow-skills:orchestrator-flow-done` and emit its
 marker.
 
 Only when every phase reported complete. If one failed or is blocked, report
