@@ -23,7 +23,7 @@ A single HTML file that plays like a video: a script turned into scenes, with sm
 
 ## 3. How it works (give the builder this structure)
 
-- **One file**, `index.html`, plain HTML/CSS/JS, target 3-5 minutes.
+- **One file**, `index.html`, plain HTML/CSS/JS. Length follows the script; there is no target duration.
 - **One master timeline.** A single `render(t)` function draws the whole frame from the time `t` alone, so play, pause, scrub and seek all show the right picture.
 - **Scenes as data.** The script becomes a list of scenes (start time, end time, title, tag). Each scene lists its beats (what appears, moves or changes at which second).
 - **A stage.** A 16:9 canvas scaled to fit the viewport, with every scene's content on layers inside it.
