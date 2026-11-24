@@ -41,7 +41,7 @@ reviewers run.
 
 Controls which of the optional reviewers the review roster drops (see
 `docs/review-roster.md`). It's a single list applied to whichever phase a
-reviewer participates in. Valid ids: `fallow`, `ponytail`, `codex` - the baseline
+reviewer participates in. Valid ids: `fallow`, `ponytail` - the baseline
 lanes are not excludable. Default (unset) = exclude nothing; reviewers whose
 dependencies are missing are skipped automatically regardless.
 
@@ -61,7 +61,7 @@ use-pull-requests = true
 # other keys...
 
 [review]
-exclude = []   # e.g. ["codex", "fallow"] to turn those reviewers off
+exclude = []   # e.g. ["ponytail", "fallow"] to turn those reviewers off
 ```
 
 ## Wrap Up

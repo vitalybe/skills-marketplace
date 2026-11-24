@@ -66,15 +66,18 @@ passed.
 In a **single message**, dispatch every selected reviewer per its "how to run"
 entry in the roster:
 
-- The built-in lane (`plan`) - do this analysis yourself, against
-  `_devflow-shared/docs/plan-guidelines.md`.
-- Sub-agent lanes (`official-anthropic-review-skill`, `ponytail`, `codex`) -
+- Every LLM lane runs as its own sub-agent; you do not review the artifact yourself.
+- Sub-agent lanes (`plan`, `official-anthropic-review-skill`, `ponytail`) -
   spawn one sub-agent each, prompted exactly as its roster entry says (the
   sub-agent reads whatever files that entry names). Pass the plan path through
   when one was given.
 - `fallow` — run the CLI directly (no sub-agent) and parse its diagnostics.
 
-Wait for all lanes to return.
+Wait for all lanes to return. A sub-agent lane reports back by itself, so end
+your turn and let its completion notification wake you. Never poll for it with
+`sleep` loops or `Monitor` timers: a timer outlives the run, and each expiry
+wakes you again after you have already reported. If you did arm a `Monitor`,
+stop it with `TaskStop` before you return.
 
 ### 4. Normalize, dedup, triage
 

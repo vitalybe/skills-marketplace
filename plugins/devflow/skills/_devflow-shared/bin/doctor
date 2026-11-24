@@ -73,12 +73,6 @@ else
   say "  --    ponytail plugin not detected - 'ponytail' reviewer skipped (install: /plugin install ponytail@ponytail)"
 fi
 
-if command -v codex >/dev/null 2>&1; then
-  say "  ok    codex CLI (run 'codex login' to authenticate)"
-else
-  say "  --    codex CLI not found - 'codex' reviewer skipped (install: pnpm add -g @openai/codex, then codex login)"
-fi
-
 say ""
 if [ "$missing" -eq 0 ]; then
   say "All dependencies satisfied."

@@ -28,9 +28,9 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 ## Procedure
 
 1. **Map the phases.** Spawn `aie-devflow:_internal-step-phase-mapping` in a
-   sub-agent (model: opus), passing the user's request verbatim. It returns
-   the flow, a `why` line, and one `phase:` line per phase still to run -
-   name, skill, model. The mapping owns all of that: use its phases, skills
+   sub-agent (model: sonnet, effort: high), passing the user's request
+   verbatim. It returns the flow, a `why` line, and one `phase:` line per
+   phase still to run - name, skill, model and optional effort. The mapping owns all of that: use its phases, skills
    and models exactly as returned, never your own. `phases: none` → report
    that to the user and stop.
 
@@ -39,7 +39,8 @@ Exception: in task-less mode a `MISS` on `jira` / the JIRA token is harmless
 
 3. **Run the phases**, one at a time, in the returned order. For each:
    1. Run the phase in its own sub-agent: the mapping's skill, on the
-      mapping's model, with the spawn prompt below.
+      mapping's model and, when the mapping gives one, its effort, with the
+      spawn prompt below.
    2. While it needs input, relay its gates (see **Relaying gates**).
    3. On its completion report: mark that phase's task complete, then start
       the next phase. If it reports failure or blocked: stop, leave that

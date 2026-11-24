@@ -103,7 +103,7 @@ goes to the plan file, not to chat - see below.)
 When findings come from more than one reviewer (see the review roster), name the
 reviewer id(s) that raised each finding in its Technical footnote. When several
 reviewers raised the same defect, list them together as corroboration (e.g.
-`Source: official-anthropic-review-skill, codex`). Omit it entirely for
+`Source: official-anthropic-review-skill, ponytail`). Omit it entirely for
 single-reviewer reviews where attribution adds nothing.
 
 ## Recording review outcomes in the plan
@@ -167,7 +167,7 @@ a session, not just checkout, so it is a product call rather than a bug fix.
 **If we don't pick.** Slow checkouts keep failing silently. In the funnel it
 reads as abandonment, so nobody goes looking for the bug.
 
-<sub>Technical: [src/session.ts:88](src/session.ts:88) - `touch()` runs only in the `GET` middleware. Source: official-anthropic-review-skill, codex.</sub>
+<sub>Technical: [src/session.ts:88](src/session.ts:88) - `touch()` runs only in the `GET` middleware. Source: official-anthropic-review-skill, ponytail.</sub>
 
 ---
 

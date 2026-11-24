@@ -160,4 +160,6 @@ does not complete until the plan carries all of it.
 ## Wrap Up
 
 1. Make sure every change is committed, the plan file included.
-2. Report completion: what was built, the commits, and the plan file path.
+2. Stop any background task or `Monitor` you started, so nothing wakes you after
+   you report.
+3. Report completion: what was built, the commits, and the plan file path.

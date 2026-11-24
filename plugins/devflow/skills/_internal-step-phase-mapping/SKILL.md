@@ -24,13 +24,17 @@ the orchestrator.
 The canonical phase definitions - the phase name, the skill that runs it,
 and the model it runs on:
 
-| Phase          | Skill                                  | Model  |
-| -------------- | -------------------------------------- | ------ |
-| `requirements` | `/devflow:_internal-step-requirements` | opus   |
-| `design`       | `/devflow:_internal-step-design`        | opus   |
-| `plan`         | `/devflow:_internal-step-plan`          | opus   |
-| `code`         | `/devflow:_internal-step-code`          | opus   |
-| `close`        | `/devflow:_internal-step-close`         | sonnet |
+| Phase          | Skill                                  | Model         |
+| -------------- | -------------------------------------- | ------------- |
+| `requirements` | `/devflow:_internal-step-requirements` | sonnet, high  |
+| `design`       | `/devflow:_internal-step-design`        | sonnet, high  |
+| `plan`         | `/devflow:_internal-step-plan`          | sonnet, high  |
+| `code`         | `/devflow:_internal-step-code`          | sonnet, high  |
+| `close`        | `/devflow:_internal-step-close`         | haiku         |
+
+A model cell is `<model>` or `<model>, <effort>`: spawn the phase sub-agent
+on that model and, when an effort is given, at that reasoning effort. No
+effort means the model's default.
 
 (This phase-to-model mapping may change.)
 
@@ -114,8 +118,8 @@ Example:
 ```
 flow: full
 why: plan file has requirements only, so plan onward is pending
-phase: plan /devflow:_internal-step-plan (opus)
-phase: code /devflow:_internal-step-code (opus)
-phase: close /devflow:_internal-step-close (sonnet)
-design-row: /devflow:_internal-step-design (opus)
+phase: plan /devflow:_internal-step-plan (sonnet, high)
+phase: code /devflow:_internal-step-code (sonnet, high)
+phase: close /devflow:_internal-step-close (haiku)
+design-row: /devflow:_internal-step-design (sonnet, high)
 ```
