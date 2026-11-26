@@ -1,0 +1,130 @@
+{
+ "_doc": "path = glob relative to $HOME (fnmatch, '*' matches inside one segment). name = basename match anywhere. tier: safe | rebuildable | decide. cmd = preferred native cleaner shown instead of rm.",
+ "targets": [
+  {
+   "path": ".cache/*",
+   "tier": "safe",
+   "note": "Tool caches; re-downloaded on demand"
+  },
+  {
+   "path": ".cache/uv",
+   "tier": "safe",
+   "note": "uv cache",
+   "cmd": "uv cache clean"
+  },
+  {
+   "path": "Library/Caches/*",
+   "tier": "safe",
+   "note": "App caches; apps rebuild them"
+  },
+  {
+   "path": "Library/pnpm",
+   "tier": "safe",
+   "note": "pnpm store",
+   "cmd": "pnpm store prune"
+  },
+  {
+   "path": ".npm/_cacache",
+   "tier": "safe",
+   "note": "npm cache",
+   "cmd": "npm cache clean --force"
+  },
+  {
+   "path": ".cargo/registry",
+   "tier": "safe",
+   "note": "cargo crate cache; re-downloaded"
+  },
+  {
+   "path": "go/pkg/mod",
+   "tier": "safe",
+   "note": "Go module cache",
+   "cmd": "go clean -modcache"
+  },
+  {
+   "path": "Library/Developer/Xcode/DerivedData",
+   "tier": "rebuildable",
+   "note": "Xcode build output"
+  },
+  {
+   "path": "Library/Developer/CoreSimulator",
+   "tier": "rebuildable",
+   "note": "iOS simulators",
+   "cmd": "xcrun simctl delete unavailable"
+  },
+  {
+   "path": ".worktrees/*",
+   "tier": "rebuildable",
+   "note": "git worktree; check `git worktree list`, remove with `git worktree remove`"
+  },
+  {
+   "path": ".claude/worktrees/*",
+   "tier": "rebuildable",
+   "note": "git worktree; remove with `git worktree remove`"
+  },
+  {
+   "name": "node_modules",
+   "tier": "rebuildable",
+   "note": "Reinstall with the package manager"
+  },
+  {
+   "name": ".venv",
+   "tier": "rebuildable",
+   "note": "Recreate the virtualenv"
+  },
+  {
+   "name": "target",
+   "tier": "rebuildable",
+   "note": "Rust build output if next to Cargo.toml",
+   "cmd": "cargo clean"
+  },
+  {
+   "name": "DerivedData",
+   "tier": "rebuildable",
+   "note": "Xcode build output"
+  },
+  {
+   "path": ".Trash",
+   "tier": "decide",
+   "note": "Trash; empty it from Finder"
+  },
+  {
+   "path": "Desktop/Screen Recording*",
+   "tier": "decide",
+   "note": "Screen recordings"
+  },
+  {
+   "path": "Downloads/*",
+   "tier": "decide",
+   "note": "Downloads"
+  },
+  {
+   "path": "Library/Application Support/*",
+   "tier": "decide",
+   "note": "App data / models; deleting resets the app"
+  },
+  {
+   "path": "Library/Containers/*",
+   "tier": "decide",
+   "note": "Sandboxed app data"
+  },
+  {
+   "path": "Library/Application Support/Claude/vm_bundles",
+   "tier": "rebuildable",
+   "note": "Claude desktop VM images; re-downloaded"
+  },
+  {
+   "path": "Library/Containers/com.docker.docker",
+   "tier": "rebuildable",
+   "note": "Docker VM disk; review with `docker system df` first",
+   "cmd": "docker system prune -a --volumes"
+  }
+ ],
+ "protected": [
+  "Library/Keychains",
+  "Library/Mobile Documents",
+  ".ssh",
+  ".gnupg",
+  "Library/Messages",
+  "Library/Photos"
+ ]
+}
